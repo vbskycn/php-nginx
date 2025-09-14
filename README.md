@@ -34,17 +34,56 @@
 * **轻量级基础**：基于Alpine Linux，镜像大小仅约40MB
 * **资源监控**：所有服务日志统一输出，便于监控和调试
 
-## 使用方法
+## 快速开始
+
+### 基本使用
 
 启动Docker容器：
 
-    docker run -p 80:8080 zhoujie218/php-nginx
+```bash
+docker run -p 80:8080 zhoujie218/php-nginx
+```
 
-在 http://localhost 查看PHP信息，或在 http://localhost/test.html 查看静态HTML页面
+访问以下地址：
+- **首页信息**: http://localhost
 
-或者挂载您自己的代码由PHP-FPM & Nginx提供服务：
+### 挂载自定义代码
 
-    docker run -p 80:8080 -v ~/my-codebase:/var/www/html zhoujie218/php-nginx
+```bash
+docker run -p 80:8080 -v ~/my-codebase:/var/www/html zhoujie218/php-nginx
+```
+
+### 使用Docker Compose
+
+创建 `docker-compose.yml`：
+
+```yaml
+version: '3.8'
+services:
+  php-nginx:
+    image: zhoujie218/php-nginx:latest
+    ports:
+      - "80:8080"
+    volumes:
+      - ./src:/var/www/html
+    environment:
+      - PHP_MEMORY_LIMIT=128M
+    restart: unless-stopped
+```
+
+启动服务：
+
+```bash
+docker-compose up -d
+```
+
+### 环境变量配置
+
+| 变量名 | 默认值 | 说明 |
+|--------|--------|------|
+| `PHP_MEMORY_LIMIT` | 64M | PHP内存限制 |
+| `REDIS_MAXMEMORY` | 64mb | Redis最大内存 |
+| `NGINX_WORKER_PROCESSES` | auto | Nginx工作进程数 |
 
 ## 版本管理
 
@@ -70,6 +109,30 @@ PHP-FPM配置：
 
 _注意：因为`-v`需要绝对路径，我在示例中添加了`pwd`来返回当前目录的绝对路径_
 
+## API文档
+
+### Redis管理API
+
+#### 获取键信息
+```bash
+GET /redis.php?action=get_key_info&key={key_name}
+```
+
+#### 删除键
+```bash
+GET /redis.php?action=delete_key&key={key_name}
+```
+
+#### 系统状态
+```bash
+GET /admin.php
+```
+
+### 健康检查端点
+
+- **PHP-FPM状态**: `/fpm-status`
+- **PHP-FPM Ping**: `/fpm-ping`
+
 ## 文档和示例
 
 要修改此容器以满足您的特定需求，请查看以下文档：
@@ -77,6 +140,7 @@ _注意：因为`-v`需要绝对路径，我在示例中添加了`pwd`来返回�
 * [🔧 技术文档](docs/技术文档.md) - 技术栈介绍、配置说明、扩展功能
 * [🚀 部署指南](docs/部署指南.md) - 工作流触发、版本管理、镜像使用
 * [📖 项目指南](docs/项目指南.md) - 贡献指南、开发指南、代码规范
+* [💡 使用示例](docs/使用示例.md) - 实际应用场景、最佳实践、故障恢复
 
 
 
