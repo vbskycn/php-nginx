@@ -328,11 +328,23 @@ function diagnoseSystem() {
     
     // 检查服务进程
     $result .= "\n5. 检查服务进程:\n";
-    $services = ['php-fpm84', 'nginx', 'redis-server'];
+    $services = ['php-fpm', 'nginx', 'redis-server'];
     foreach ($services as $service) {
         $process = shell_exec("pgrep -f '{$service}' 2>/dev/null");
         if ($process) {
             $result .= "✓ {$service} 进程正在运行 (PID: " . trim($process) . ")\n";
+            
+            // 显示进程详细信息
+            $ps_info = shell_exec("ps aux | grep '{$service}' | grep -v grep 2>/dev/null");
+            if ($ps_info) {
+                $result .= "  进程详情:\n";
+                $lines = explode("\n", trim($ps_info));
+                foreach ($lines as $line) {
+                    if (trim($line)) {
+                        $result .= "    " . trim($line) . "\n";
+                    }
+                }
+            }
         } else {
             $result .= "✗ {$service} 进程未运行\n";
         }
@@ -367,10 +379,91 @@ function diagnoseSystem() {
     return $result;
 }
 
+// 获取容器运行时间
+function getContainerUptime() {
+    // 尝试从 /proc/uptime 获取容器运行时间
+    $uptime_file = '/proc/uptime';
+    if (file_exists($uptime_file)) {
+        $uptime_data = file_get_contents($uptime_file);
+        if ($uptime_data) {
+            $parts = explode(' ', trim($uptime_data));
+            $uptime_seconds = floatval($parts[0]);
+            
+            // 转换为可读格式
+            $days = floor($uptime_seconds / 86400);
+            $hours = floor(($uptime_seconds % 86400) / 3600);
+            $minutes = floor(($uptime_seconds % 3600) / 60);
+            $seconds = floor($uptime_seconds % 60);
+            
+            if ($days > 0) {
+                return "容器运行时间: {$days}天 {$hours}小时 {$minutes}分钟";
+            } elseif ($hours > 0) {
+                return "容器运行时间: {$hours}小时 {$minutes}分钟";
+            } elseif ($minutes > 0) {
+                return "容器运行时间: {$minutes}分钟 {$seconds}秒";
+            } else {
+                return "容器运行时间: {$seconds}秒";
+            }
+        }
+    }
+    
+    // 备用方案：尝试使用 uptime 命令但显示为容器信息
+    $uptime = shell_exec('uptime 2>&1');
+    if ($uptime) {
+        return "容器状态: " . trim($uptime);
+    }
+    
+    return "无法获取容器运行时间";
+}
+
+// 获取容器 ID
+function getContainerId() {
+    // 尝试从 /proc/self/cgroup 获取容器 ID
+    $cgroup_file = '/proc/self/cgroup';
+    if (file_exists($cgroup_file)) {
+        $cgroup_data = file_get_contents($cgroup_file);
+        if ($cgroup_data) {
+            $lines = explode("\n", $cgroup_data);
+            foreach ($lines as $line) {
+                if (strpos($line, 'docker') !== false || strpos($line, 'containerd') !== false) {
+                    $parts = explode('/', $line);
+                    if (count($parts) >= 3) {
+                        $container_id = $parts[2];
+                        // 截取前12位作为短ID
+                        return substr($container_id, 0, 12);
+                    }
+                }
+            }
+        }
+    }
+    
+    // 备用方案：尝试从 hostname 获取
+    $hostname = shell_exec('hostname 2>/dev/null');
+    if ($hostname) {
+        return trim($hostname);
+    }
+    
+    return "未知";
+}
+
 // 获取进程内存占用
 function getProcessMemory($process_name) {
-    $memory_info = shell_exec("ps -o pid,rss,comm -C {$process_name} --no-headers 2>/dev/null");
-    if (!$memory_info) {
+    // 尝试多种方式查找进程
+    $commands = [
+        "ps -o pid,rss,comm -C {$process_name} --no-headers 2>/dev/null",
+        "ps aux | grep '{$process_name}' | grep -v grep 2>/dev/null",
+        "pgrep -f '{$process_name}' | xargs ps -o pid,rss,comm --no-headers 2>/dev/null"
+    ];
+    
+    $memory_info = '';
+    foreach ($commands as $cmd) {
+        $memory_info = shell_exec($cmd);
+        if ($memory_info && trim($memory_info)) {
+            break;
+        }
+    }
+    
+    if (!$memory_info || !trim($memory_info)) {
         return '未运行';
     }
     
@@ -382,8 +475,20 @@ function getProcessMemory($process_name) {
         if (trim($line)) {
             $parts = preg_split('/\s+/', trim($line));
             if (count($parts) >= 2) {
-                $total_memory += intval($parts[1]); // RSS in KB
-                $process_count++;
+                // 处理不同的 ps 输出格式
+                $rss_index = 1;
+                if (count($parts) >= 3 && is_numeric($parts[1]) && is_numeric($parts[2])) {
+                    // ps aux 格式: USER PID %CPU %MEM VSZ RSS TTY STAT START TIME COMMAND
+                    $rss_index = 5; // RSS 在第6列
+                } elseif (count($parts) >= 2 && is_numeric($parts[1])) {
+                    // ps -o 格式: PID RSS COMM
+                    $rss_index = 1; // RSS 在第2列
+                }
+                
+                if (isset($parts[$rss_index]) && is_numeric($parts[$rss_index])) {
+                    $total_memory += intval($parts[$rss_index]); // RSS in KB
+                    $process_count++;
+                }
             }
         }
     }
@@ -405,13 +510,14 @@ function getSystemInfo() {
     $info['php_version'] = PHP_VERSION;
     $info['php_memory_limit'] = ini_get('memory_limit');
     $info['php_max_execution_time'] = ini_get('max_execution_time');
-    $info['php_memory_usage'] = getProcessMemory('php-fpm84');
+    $info['php_memory_usage'] = getProcessMemory('php-fpm');
     
     // Nginx 信息
     $info['nginx_memory_usage'] = getProcessMemory('nginx');
     
     // 系统信息
-    $info['uptime'] = shell_exec('uptime 2>&1') ?: '无法获取';
+    $info['uptime'] = getContainerUptime();
+    $info['container_id'] = getContainerId();
     $info['memory_usage'] = shell_exec('free -h 2>&1') ?: '无法获取';
     $info['disk_usage'] = shell_exec('df -h / 2>&1') ?: '无法获取';
     
@@ -723,9 +829,10 @@ $systemInfo = getSystemInfo();
                             
                             <div class="bg-purple-50 rounded-lg p-4">
                                 <h3 class="font-semibold text-purple-800 mb-2">
-                                    <i class="fas fa-info-circle text-purple-600 mr-1"></i>系统状态
+                                    <i class="fas fa-info-circle text-purple-600 mr-1"></i>容器状态
                                 </h3>
-                                <p class="text-sm text-purple-700">运行时间: <?php echo $systemInfo['uptime']; ?></p>
+                                <p class="text-sm text-purple-700"><?php echo $systemInfo['uptime']; ?></p>
+                                <p class="text-sm text-purple-700">容器 ID: <?php echo $systemInfo['container_id']; ?></p>
                             </div>
                         </div>
                     </div>
