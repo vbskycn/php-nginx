@@ -367,6 +367,36 @@ function diagnoseSystem() {
     return $result;
 }
 
+// 获取进程内存占用
+function getProcessMemory($process_name) {
+    $memory_info = shell_exec("ps -o pid,rss,comm -C {$process_name} --no-headers 2>/dev/null");
+    if (!$memory_info) {
+        return '未运行';
+    }
+    
+    $lines = explode("\n", trim($memory_info));
+    $total_memory = 0;
+    $process_count = 0;
+    
+    foreach ($lines as $line) {
+        if (trim($line)) {
+            $parts = preg_split('/\s+/', trim($line));
+            if (count($parts) >= 2) {
+                $total_memory += intval($parts[1]); // RSS in KB
+                $process_count++;
+            }
+        }
+    }
+    
+    if ($total_memory > 0) {
+        // 转换为 MB
+        $memory_mb = round($total_memory / 1024, 2);
+        return "{$memory_mb}MB ({$process_count}个进程)";
+    }
+    
+    return '未运行';
+}
+
 // 获取系统信息
 function getSystemInfo() {
     $info = [];
@@ -375,6 +405,10 @@ function getSystemInfo() {
     $info['php_version'] = PHP_VERSION;
     $info['php_memory_limit'] = ini_get('memory_limit');
     $info['php_max_execution_time'] = ini_get('max_execution_time');
+    $info['php_memory_usage'] = getProcessMemory('php-fpm84');
+    
+    // Nginx 信息
+    $info['nginx_memory_usage'] = getProcessMemory('nginx');
     
     // 系统信息
     $info['uptime'] = shell_exec('uptime 2>&1') ?: '无法获取';
@@ -388,6 +422,7 @@ function getSystemInfo() {
         $redis_info = $redis->info();
         $info['redis_version'] = $redis_info['redis_version'] ?? '未知';
         $info['redis_memory'] = $redis_info['used_memory_human'] ?? '未知';
+        $info['redis_memory_usage'] = getProcessMemory('redis-server');
         $info['redis_connected_clients'] = $redis_info['connected_clients'] ?? '未知';
     } catch (Exception $e) {
         $info['redis_error'] = $e->getMessage();
@@ -650,25 +685,46 @@ $systemInfo = getSystemInfo();
                         
                         <div class="space-y-4">
                             <div class="bg-blue-50 rounded-lg p-4">
-                                <h3 class="font-semibold text-blue-800 mb-2">PHP 信息</h3>
+                                <h3 class="font-semibold text-blue-800 mb-2">
+                                    <i class="fas fa-code text-blue-600 mr-1"></i>PHP 信息
+                                </h3>
                                 <p class="text-sm text-blue-700">版本: <?php echo $systemInfo['php_version']; ?></p>
                                 <p class="text-sm text-blue-700">内存限制: <?php echo $systemInfo['php_memory_limit']; ?></p>
                                 <p class="text-sm text-blue-700">执行时间: <?php echo $systemInfo['php_max_execution_time']; ?>s</p>
+                                <p class="text-sm text-blue-700 font-medium">
+                                    <i class="fas fa-memory mr-1"></i>实际占用: <?php echo $systemInfo['php_memory_usage']; ?>
+                                </p>
+                            </div>
+                            
+                            <div class="bg-orange-50 rounded-lg p-4">
+                                <h3 class="font-semibold text-orange-800 mb-2">
+                                    <i class="fas fa-server text-orange-600 mr-1"></i>Nginx 信息
+                                </h3>
+                                <p class="text-sm text-orange-700 font-medium">
+                                    <i class="fas fa-memory mr-1"></i>实际占用: <?php echo $systemInfo['nginx_memory_usage']; ?>
+                                </p>
                             </div>
                             
                             <div class="bg-green-50 rounded-lg p-4">
-                                <h3 class="font-semibold text-green-800 mb-2">Redis 信息</h3>
+                                <h3 class="font-semibold text-green-800 mb-2">
+                                    <i class="fas fa-database text-green-600 mr-1"></i>Redis 信息
+                                </h3>
                                 <?php if (isset($systemInfo['redis_error'])): ?>
                                     <p class="text-sm text-red-600"><?php echo $systemInfo['redis_error']; ?></p>
                                 <?php else: ?>
                                     <p class="text-sm text-green-700">版本: <?php echo $systemInfo['redis_version']; ?></p>
                                     <p class="text-sm text-green-700">内存: <?php echo $systemInfo['redis_memory']; ?></p>
+                                    <p class="text-sm text-green-700 font-medium">
+                                        <i class="fas fa-memory mr-1"></i>实际占用: <?php echo $systemInfo['redis_memory_usage']; ?>
+                                    </p>
                                     <p class="text-sm text-green-700">连接数: <?php echo $systemInfo['redis_connected_clients']; ?></p>
                                 <?php endif; ?>
                             </div>
                             
                             <div class="bg-purple-50 rounded-lg p-4">
-                                <h3 class="font-semibold text-purple-800 mb-2">系统状态</h3>
+                                <h3 class="font-semibold text-purple-800 mb-2">
+                                    <i class="fas fa-info-circle text-purple-600 mr-1"></i>系统状态
+                                </h3>
                                 <p class="text-sm text-purple-700">运行时间: <?php echo $systemInfo['uptime']; ?></p>
                             </div>
                         </div>
