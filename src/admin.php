@@ -26,10 +26,12 @@ if ($is_authenticated && isset($_POST['action'])) {
         case 'status':
             $supervisor_config = '/etc/supervisor/conf.d/supervisord.conf';
             $result = shell_exec("supervisorctl -c {$supervisor_config} status 2>&1");
-            if (!$result || strpos($result, 'error') !== false || strpos($result, '.ini file does not include supervisorctl section') !== false) {
+            if (!$result || strpos($result, 'error') !== false || strpos($result, '.ini file does not include supervisorctl section') !== false ||
+                strpos($result, 'no such file') !== false || strpos($result, 'unix:///run/supervisor.sock') !== false) {
                 $result = shell_exec('supervisorctl status 2>&1');
-                if (!$result || strpos($result, 'error') !== false || strpos($result, '.ini file does not include supervisorctl section') !== false) {
-                    $result = "Supervisord 配置问题，显示进程状态:\n" . shell_exec('ps aux | grep -E "(php-fpm|nginx|redis)" | grep -v grep 2>&1');
+                if (!$result || strpos($result, 'error') !== false || strpos($result, '.ini file does not include supervisorctl section') !== false ||
+                    strpos($result, 'no such file') !== false || strpos($result, 'unix:///run/supervisor.sock') !== false) {
+                    $result = "Supervisord socket 文件不存在，显示进程状态:\n" . shell_exec('ps aux | grep -E "(php-fpm|nginx|redis)" | grep -v grep 2>&1');
                 }
             }
             break;
@@ -50,6 +52,9 @@ if ($is_authenticated && isset($_POST['action'])) {
             break;
         case 'container_restart':
             $result = restartContainer();
+            break;
+        case 'diagnose':
+            $result = diagnoseSystem();
             break;
     }
 }
@@ -73,7 +78,9 @@ function getServiceStatus() {
     
     // 如果 supervisord 命令失败，尝试直接检查进程
     if (!$status || strpos($status, 'error') !== false || strpos($status, 'not read config') !== false || 
-        strpos($status, '.ini file does not include supervisorctl section') !== false) {
+        strpos($status, '.ini file does not include supervisorctl section') !== false ||
+        strpos($status, 'no such file') !== false ||
+        strpos($status, 'unix:///run/supervisor.sock') !== false) {
         // 直接检查进程状态
         $services = checkProcessStatus();
     } else {
@@ -139,12 +146,14 @@ function restartService($process_name, $service_name) {
     // 首先尝试使用 supervisord
     $supervisor_result = shell_exec("supervisorctl -c {$supervisor_config} restart {$service_name} 2>&1");
     
-    // 检查是否包含 .ini 文件错误
+    // 检查是否包含 .ini 文件错误或 socket 文件不存在
     if (!$supervisor_result || strpos($supervisor_result, 'error') !== false || 
         strpos($supervisor_result, 'not read config') !== false || 
-        strpos($supervisor_result, '.ini file does not include supervisorctl section') !== false) {
+        strpos($supervisor_result, '.ini file does not include supervisorctl section') !== false ||
+        strpos($supervisor_result, 'no such file') !== false ||
+        strpos($supervisor_result, 'unix:///run/supervisor.sock') !== false) {
         
-        $result .= "Supervisord 配置问题，尝试其他方法...\n";
+        $result .= "Supervisord socket 文件不存在，尝试其他方法...\n";
         
         // 方法1: 尝试使用默认配置
         $default_result = shell_exec("supervisorctl restart {$service_name} 2>&1");
@@ -248,6 +257,95 @@ function restartContainer() {
     } else {
         $result .= "不在容器环境中，无法执行容器重启\n";
     }
+    
+    return $result;
+}
+
+// 系统诊断功能
+function diagnoseSystem() {
+    $result = '';
+    
+    $result .= "=== 系统诊断报告 ===\n\n";
+    
+    // 检查 supervisord 进程
+    $result .= "1. 检查 supervisord 进程:\n";
+    $supervisord_process = shell_exec('ps aux | grep supervisord | grep -v grep 2>&1');
+    if ($supervisord_process) {
+        $result .= "✓ Supervisord 进程正在运行:\n{$supervisord_process}\n";
+    } else {
+        $result .= "✗ Supervisord 进程未运行\n";
+    }
+    
+    // 检查 socket 文件
+    $result .= "\n2. 检查 socket 文件:\n";
+    $socket_files = [
+        '/run/supervisor.sock',
+        '/run/supervisord.sock',
+        '/tmp/supervisor.sock'
+    ];
+    
+    foreach ($socket_files as $socket) {
+        if (file_exists($socket)) {
+            $result .= "✓ Socket 文件存在: {$socket}\n";
+            $perms = shell_exec("ls -la {$socket} 2>&1");
+            $result .= "  权限: {$perms}";
+        } else {
+            $result .= "✗ Socket 文件不存在: {$socket}\n";
+        }
+    }
+    
+    // 检查配置文件
+    $result .= "\n3. 检查配置文件:\n";
+    $config_files = [
+        '/etc/supervisor/conf.d/supervisord.conf',
+        '/etc/supervisord.conf'
+    ];
+    
+    foreach ($config_files as $config) {
+        if (file_exists($config)) {
+            $result .= "✓ 配置文件存在: {$config}\n";
+        } else {
+            $result .= "✗ 配置文件不存在: {$config}\n";
+        }
+    }
+    
+    // 检查服务进程
+    $result .= "\n4. 检查服务进程:\n";
+    $services = ['php-fpm84', 'nginx', 'redis-server'];
+    foreach ($services as $service) {
+        $process = shell_exec("pgrep -f '{$service}' 2>/dev/null");
+        if ($process) {
+            $result .= "✓ {$service} 进程正在运行 (PID: " . trim($process) . ")\n";
+        } else {
+            $result .= "✗ {$service} 进程未运行\n";
+        }
+    }
+    
+    // 检查端口
+    $result .= "\n5. 检查端口:\n";
+    $ports = ['8080', '6379'];
+    foreach ($ports as $port) {
+        $port_check = shell_exec("netstat -tlnp 2>/dev/null | grep :{$port} || ss -tlnp 2>/dev/null | grep :{$port}");
+        if ($port_check) {
+            $result .= "✓ 端口 {$port} 正在监听:\n{$port_check}\n";
+        } else {
+            $result .= "✗ 端口 {$port} 未监听\n";
+        }
+    }
+    
+    // 检查权限
+    $result .= "\n6. 检查目录权限:\n";
+    $dirs = ['/run', '/run/supervisor', '/var/www/html'];
+    foreach ($dirs as $dir) {
+        if (is_dir($dir)) {
+            $perms = shell_exec("ls -ld {$dir} 2>&1");
+            $result .= "✓ 目录 {$dir} 存在:\n{$perms}";
+        } else {
+            $result .= "✗ 目录 {$dir} 不存在\n";
+        }
+    }
+    
+    $result .= "\n=== 诊断完成 ===\n";
     
     return $result;
 }
@@ -481,12 +579,20 @@ $systemInfo = getSystemInfo();
                         </div>
 
                         <!-- 其他操作 -->
-                        <div class="mt-4 grid grid-cols-1 md:grid-cols-4 gap-3">
+                        <div class="mt-4 grid grid-cols-1 md:grid-cols-5 gap-3">
                             <form method="POST" class="inline">
                                 <input type="hidden" name="action" value="status">
                                 <button type="submit" class="w-full bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-700 btn">
                                     <i class="fas fa-info-circle mr-2"></i>
                                     查看状态
+                                </button>
+                            </form>
+                            
+                            <form method="POST" class="inline">
+                                <input type="hidden" name="action" value="diagnose">
+                                <button type="submit" class="w-full bg-teal-600 text-white py-2 px-4 rounded-md hover:bg-teal-700 btn">
+                                    <i class="fas fa-stethoscope mr-2"></i>
+                                    系统诊断
                                 </button>
                             </form>
                             
