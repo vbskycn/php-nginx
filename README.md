@@ -1,70 +1,82 @@
-# Docker PHP-FPM 8.4 & Nginx 1.26 on Alpine Linux
-Example PHP-FPM 8.4 & Nginx 1.26 container image for Docker, built on [Alpine Linux](https://www.alpinelinux.org/).
+# Docker PHP-FPM 8.4 & Nginx 1.26 基于 Alpine Linux
 
-Repository: https://github.com/TrafeX/docker-php-nginx
+基于 [Alpine Linux](https://www.alpinelinux.org/) 构建的 Docker PHP-FPM 8.4 & Nginx 1.26 容器镜像示例。
 
+仓库地址: https://github.com/vbskycn/php-nginx
 
-* Built on the lightweight and secure Alpine Linux distribution
-* Multi-platform, supporting AMD4, ARMv6, ARMv7, ARM64
-* Very small Docker image size (+/-40MB)
-* Uses PHP 8.4 for the best performance, low CPU usage & memory footprint
-* Optimized for 100 concurrent users i.e. limits the concurrent requests serving php files
-* Optimized to only use resources when there's traffic (by using PHP-FPM's `on-demand` process manager)
-* The services Nginx, PHP-FPM and supervisord run under a non-privileged user (nobody) to make it more secure
-* The logs of all the services are redirected to the output of the Docker container (visible with `docker logs -f <container name>`)
-* Follows the KISS principle (Keep It Simple, Stupid) to make it easy to understand and adjust the image to your needs
+## 特性
 
-[![Docker Pulls](https://img.shields.io/docker/pulls/trafex/php-nginx.svg)](https://hub.docker.com/r/trafex/php-nginx/)
+* 基于轻量级且安全的 Alpine Linux 发行版构建
+* 多平台支持，支持 AMD64, ARMv6, ARMv7, ARM64
+* 极小的 Docker 镜像大小（约40MB）
+* **专门针对512M VPS优化**，内存占用极低，适合小内存服务器
+* 使用 PHP 8.4 以获得最佳性能、低CPU使用率和内存占用
+* 针对100个并发用户优化，限制并发处理PHP文件的请求数
+* 优化为仅在流量时使用资源（通过使用PHP-FPM的`on-demand`进程管理器）
+* Nginx、PHP-FPM和supervisord服务在非特权用户（nobody）下运行，更加安全
+* 所有服务的日志都重定向到Docker容器的输出（可通过`docker logs -f <容器名称>`查看）
+* 遵循KISS原则（Keep It Simple, Stupid），易于理解和调整镜像以满足您的需求
+
+[![Docker Pulls](https://img.shields.io/docker/pulls/zhoujie218/php-nginx.svg)](https://hub.docker.com/r/zhoujie218/php-nginx/)
 ![nginx 1.26](https://img.shields.io/badge/nginx-1.26-brightgreen.svg)
 ![php 8.4](https://img.shields.io/badge/php-8.4-brightgreen.svg)
 ![License MIT](https://img.shields.io/badge/license-MIT-blue.svg)
 
-## [![Trafex Consultancy](https://timdepater.com/logo/mini-logo.png)](https://timdepater.com?mtm_campaign=github)
-I can help you with [Containerization, Kubernetes, Monitoring, Infrastructure as Code and other DevOps challenges](https://timdepater.com/?mtm_campaign=github).
+## 项目目标
 
+这个容器镜像的目标是提供一个在容器中运行Nginx和PHP-FPM的示例，专门针对512M VPS进行优化，遵循最佳实践，易于理解和修改以满足您的需求。特别适合资源受限的小型服务器环境。如你需要可以自行调整并重新编译
 
-## Goal of this project
-The goal of this container image is to provide an example for running Nginx and PHP-FPM in a container which follows
-the best practices and is easy to understand and modify to your needs.
+## 512M VPS 优化特性
 
-## Usage
+* **内存优化**：PHP内存限制64MB，OPcache内存32MB，Redis内存限制64MB
+* **进程管理**：PHP-FPM使用`on-demand`模式，按需创建进程，空闲时自动回收
+* **并发控制**：最大50个PHP-FPM进程，支持100个并发用户
+* **缓存策略**：启用OPcache加速，Redis LRU淘汰策略，静态资源5天缓存
+* **轻量级基础**：基于Alpine Linux，镜像大小仅约40MB
+* **资源监控**：所有服务日志统一输出，便于监控和调试
 
-Start the Docker container:
+## 使用方法
 
-    docker run -p 80:8080 trafex/php-nginx
+启动Docker容器：
 
-See the PHP info on http://localhost, or the static html page on http://localhost/test.html
+    docker run -p 80:8080 zhoujie218/php-nginx
 
-Or mount your own code to be served by PHP-FPM & Nginx
+在 http://localhost 查看PHP信息，或在 http://localhost/test.html 查看静态HTML页面
 
-    docker run -p 80:8080 -v ~/my-codebase:/var/www/html trafex/php-nginx
+或者挂载您自己的代码由PHP-FPM & Nginx提供服务：
 
-## Versioning
-Major or minor changes are always published as a [release](https://github.com/TrafeX/docker-php-nginx/releases) with correspondending changelogs.
-The `latest` tag is automatically updated weekly to include the latests patches from Alpine Linux.
+    docker run -p 80:8080 -v ~/my-codebase:/var/www/html zhoujie218/php-nginx
 
-## Configuration
-In [config/](config/) you'll find the default configuration files for Nginx, PHP and PHP-FPM.
-If you want to extend or customize that you can do so by mounting a configuration file in the correct folder;
+## 版本管理
 
-Nginx configuration:
+主要或次要更改总是作为[发布版本](https://github.com/zhoujie218/php-nginx/releases)发布，并附有相应的变更日志。
+`latest`标签每周自动更新，包含Alpine Linux的最新补丁。
 
-    docker run -v "`pwd`/nginx-server.conf:/etc/nginx/conf.d/server.conf" trafex/php-nginx
+## 配置
 
-PHP configuration:
+在[config/](config/)目录中，您可以找到Nginx、PHP和PHP-FPM的默认配置文件。
+如果您想扩展或自定义配置，可以通过在正确的文件夹中挂载配置文件来实现：
 
-    docker run -v "`pwd`/php-setting.ini:/etc/php84/conf.d/settings.ini" trafex/php-nginx
+Nginx配置：
 
-PHP-FPM configuration:
+    docker run -v "`pwd`/nginx-server.conf:/etc/nginx/conf.d/server.conf" zhoujie218/php-nginx
 
-    docker run -v "`pwd`/php-fpm-settings.conf:/etc/php84/php-fpm.d/server.conf" trafex/php-nginx
+PHP配置：
 
-_Note; Because `-v` requires an absolute path I've added `pwd` in the example to return the absolute path to the current directory_
+    docker run -v "`pwd`/php-setting.ini:/etc/php84/conf.d/settings.ini" zhoujie218/php-nginx
 
-## Documentation and examples
-To modify this container to your specific needs please see the following examples;
+PHP-FPM配置：
 
-* [Adding xdebug support](https://github.com/TrafeX/docker-php-nginx/blob/master/docs/xdebug-support.md)
-* [Adding composer](https://github.com/TrafeX/docker-php-nginx/blob/master/docs/composer-support.md)
-* [Getting the real IP of the client behind a load balancer](https://github.com/TrafeX/docker-php-nginx/blob/master/docs/real-ip-behind-loadbalancer.md)
-* [Sending e-mails](https://github.com/TrafeX/docker-php-nginx/blob/master/docs/sending-emails.md)
+    docker run -v "`pwd`/php-fpm-settings.conf:/etc/php84/php-fpm.d/server.conf" zhoujie218/php-nginx
+
+_注意：因为`-v`需要绝对路径，我在示例中添加了`pwd`来返回当前目录的绝对路径_
+
+## 文档和示例
+
+要修改此容器以满足您的特定需求，请查看以下示例：
+
+* [添加xdebug支持](https://github.com/zhoujie218/php-nginx/blob/main/docs/xdebug-support.md)
+* [添加composer](https://github.com/zhoujie218/php-nginx/blob/main/docs/composer-support.md)
+* [获取负载均衡器后客户端的真实IP](https://github.com/zhoujie218/php-nginx/blob/main/docs/real-ip-behind-loadbalancer.md)
+* [发送邮件](https://github.com/zhoujie218/php-nginx/blob/main/docs/sending-emails.md)
+* [启用HTTPS](https://github.com/zhoujie218/php-nginx/blob/main/docs/enable-https.md)
