@@ -32,14 +32,22 @@ RUN apk add --no-cache \
   supervisor \
   && ln -s /usr/bin/php84 /usr/bin/php
 
-# Configure all services in one layer for better caching
-ENV PHP_INI_DIR /etc/php84
-COPY config/nginx.conf /etc/nginx/nginx.conf \
-     config/conf.d /etc/nginx/conf.d/ \
-     config/fpm-pool.conf ${PHP_INI_DIR}/php-fpm.d/www.conf \
-     config/php.ini ${PHP_INI_DIR}/conf.d/custom.ini \
-     config/redis.conf /etc/redis.conf \
-     config/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+# Configure all services for better caching
+ENV PHP_INI_DIR=/etc/php84
+
+# Copy nginx configuration
+COPY config/nginx.conf /etc/nginx/nginx.conf
+COPY config/conf.d /etc/nginx/conf.d/
+
+# Copy PHP-FPM configuration
+COPY config/fpm-pool.conf ${PHP_INI_DIR}/php-fpm.d/www.conf
+COPY config/php.ini ${PHP_INI_DIR}/conf.d/custom.ini
+
+# Copy Redis configuration
+COPY config/redis.conf /etc/redis.conf
+
+# Copy supervisord configuration
+COPY config/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 # Make sure files/folders needed by the processes are accessable when they run under the nobody user
 RUN chown -R nobody:nobody /var/www/html /run /var/lib/nginx /var/log/nginx
