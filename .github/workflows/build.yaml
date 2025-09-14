@@ -15,18 +15,6 @@ on:
       - 'version'
   schedule:
     - cron: "0 2 * * 6"
-  workflow_dispatch:
-    inputs:
-      branch:
-        description: 'Branch to build (default: current branch)'
-        required: false
-        default: ''
-        type: string
-      push_to_dockerhub:
-        description: 'Push to Docker Hub (default: false for manual runs)'
-        required: false
-        default: false
-        type: boolean
 
 env:
   IMAGE_NAME: zhoujie218/php-nginx
@@ -52,10 +40,6 @@ jobs:
           echo "Git ref: ${{ github.ref }}"
           echo "Is main branch push: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' }}"
           echo "Version file monitoring: ENABLED"
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "Manual build - Branch: ${{ github.event.inputs.branch || 'current' }}"
-            echo "Push to Docker Hub: ${{ github.event.inputs.push_to_dockerhub }}"
-          fi
           if [ "${{ github.event_name }}" = "schedule" ]; then
             echo "🕐 Scheduled build - Weekly automatic build triggered"
             echo "This build will push to Docker Hub with latest tag"
@@ -124,14 +108,14 @@ jobs:
           sarif_file: "trivy-results.sarif"
 
       - name: Login to Docker Hub
-        if: (github.ref == 'refs/heads/main' && github.event_name == 'push') || contains(github.ref, 'refs/tags/') || (github.event_name == 'workflow_dispatch' && github.event.inputs.push_to_dockerhub == 'true') || github.event_name == 'schedule'
+        if: (github.ref == 'refs/heads/main' && github.event_name == 'push') || contains(github.ref, 'refs/tags/') || github.event_name == 'schedule'
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build multi-arch image and push latest tag
-        if: (github.ref == 'refs/heads/main' && github.event_name == 'push') || (github.event_name == 'workflow_dispatch' && github.event.inputs.push_to_dockerhub == 'true') || github.event_name == 'schedule'
+        if: (github.ref == 'refs/heads/main' && github.event_name == 'push') || github.event_name == 'schedule'
         run: |-
           echo "开始构建多架构镜像 - $(date)"
           echo "构建镜像: ${{ steps.parse_version.outputs.NAME }}"
@@ -153,9 +137,9 @@ jobs:
           echo "⏭️  Skipping Docker build and push"
           echo "Reason: This is not a main branch push"
           echo "To trigger Docker build:"
-          echo "  1. Push directly to main branch, or"
+          echo "  1. Update version file and push to main branch, or"
           echo "  2. Create a version tag (e.g., v1.0.0), or"
-          echo "  3. Use manual workflow dispatch with 'Push to Docker Hub' enabled"
+          echo "  3. Wait for weekly scheduled build (Saturday 2:00 AM UTC)"
 
       - name: Check if tag exists
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
@@ -229,4 +213,3 @@ jobs:
           echo "Reason: This is not a main branch push"
           echo "To create a Release:"
           echo "  1. Update the version file and push to main branch"
-          echo "  2. Or use manual workflow dispatch"
