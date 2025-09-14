@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PHP-Nginx 测试页面</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .card {
+            transition: all 0.3s ease;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        .card-php {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+        .card-redis {
+            background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+        }
+        .card-redis-info {
+            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+        }
+        .card-redis-monitor {
+            background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+        }
+        .icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+        .btn {
+            transition: all 0.3s ease;
+        }
+        .btn:hover {
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="container mx-auto px-4 py-12">
+        <!-- 标题区域 -->
+        <div class="text-center mb-12">
+            <h1 class="text-5xl font-bold text-gray-800 mb-4">
+                <i class="fas fa-server text-blue-600"></i>
+                PHP-Nginx 测试中心
+            </h1>
+            <p class="text-xl text-gray-600 max-w-2xl mx-auto">
+                基于 Alpine Linux 的轻量级 PHP 8.4 + Nginx 1.26 容器，专门针对 512M VPS 优化
+            </p>
+        </div>
+
+        <!-- 测试页面卡片网格 -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 max-w-6xl mx-auto">
+            
+            <!-- PHP 信息页面 -->
+            <div class="card card-php rounded-2xl p-8 text-white text-center">
+                <div class="icon">
+                    <i class="fab fa-php"></i>
+                </div>
+                <h3 class="text-2xl font-bold mb-4">PHP 信息</h3>
+                <p class="text-white/90 mb-6">查看 PHP 8.4 配置信息和扩展状态</p>
+                <a href="php.php" class="btn bg-white text-blue-600 px-6 py-3 rounded-full font-semibold hover:bg-gray-100 inline-block">
+                    <i class="fas fa-external-link-alt mr-2"></i>
+                    查看详情
+                </a>
+            </div>
+
+            <!-- Redis 测试页面 -->
+            <div class="card card-redis rounded-2xl p-8 text-white text-center">
+                <div class="icon">
+                    <i class="fas fa-database"></i>
+                </div>
+                <h3 class="text-2xl font-bold mb-4">Redis 测试</h3>
+                <p class="text-white/90 mb-6">测试 Redis 连接和基本操作功能</p>
+                <a href="redis.php" class="btn bg-white text-green-600 px-6 py-3 rounded-full font-semibold hover:bg-gray-100 inline-block">
+                    <i class="fas fa-external-link-alt mr-2"></i>
+                    开始测试
+                </a>
+            </div>
+
+            <!-- Redis 信息页面 -->
+            <div class="card card-redis-info rounded-2xl p-8 text-white text-center">
+                <div class="icon">
+                    <i class="fas fa-info-circle"></i>
+                </div>
+                <h3 class="text-2xl font-bold mb-4">Redis 信息</h3>
+                <p class="text-white/90 mb-6">查看 Redis 服务器详细配置信息</p>
+                <a href="redis_info.php" class="btn bg-white text-pink-600 px-6 py-3 rounded-full font-semibold hover:bg-gray-100 inline-block">
+                    <i class="fas fa-external-link-alt mr-2"></i>
+                    查看信息
+                </a>
+            </div>
+
+            <!-- Redis 监控面板 -->
+            <div class="card card-redis-monitor rounded-2xl p-8 text-white text-center">
+                <div class="icon">
+                    <i class="fas fa-chart-line"></i>
+                </div>
+                <h3 class="text-2xl font-bold mb-4">Redis 监控</h3>
+                <p class="text-white/90 mb-6">实时监控 Redis 缓存键和性能指标</p>
+                <a href="redis.php" class="btn bg-white text-purple-600 px-6 py-3 rounded-full font-semibold hover:bg-gray-100 inline-block">
+                    <i class="fas fa-external-link-alt mr-2"></i>
+                    进入监控
+                </a>
+            </div>
+        </div>
+
+        <!-- 系统信息区域 -->
+        <div class="mt-16 max-w-4xl mx-auto">
+            <div class="bg-white rounded-2xl shadow-lg p-8">
+                <h2 class="text-3xl font-bold text-gray-800 mb-6 text-center">
+                    <i class="fas fa-cogs text-blue-600 mr-3"></i>
+                    系统特性
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div class="text-center p-4">
+                        <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <i class="fas fa-memory text-blue-600 text-2xl"></i>
+                        </div>
+                        <h3 class="font-bold text-gray-800 mb-2">内存优化</h3>
+                        <p class="text-gray-600 text-sm">PHP 64MB，OPcache 32MB，Redis 64MB</p>
+                    </div>
+                    <div class="text-center p-4">
+                        <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <i class="fas fa-users text-green-600 text-2xl"></i>
+                        </div>
+                        <h3 class="font-bold text-gray-800 mb-2">并发支持</h3>
+                        <p class="text-gray-600 text-sm">最大50个进程，支持50个并发用户</p>
+                    </div>
+                    <div class="text-center p-4">
+                        <div class="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <i class="fas fa-rocket text-purple-600 text-2xl"></i>
+                        </div>
+                        <h3 class="font-bold text-gray-800 mb-2">轻量级</h3>
+                        <p class="text-gray-600 text-sm">基于 Alpine Linux，镜像仅约40MB</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 页脚 -->
+        <div class="mt-16 text-center text-gray-500">
+            <p class="mb-2">
+                <i class="fas fa-code mr-2"></i>
+                基于 Alpine Linux 构建的 Docker PHP-FPM 8.4 & Nginx 1.26
+            </p>
+            <p class="text-sm">
+                <i class="fas fa-server mr-2"></i>
+                专门针对 512M VPS 优化，适合小型服务器环境
+            </p>
+        </div>
+    </div>
+</body>
+</html>
