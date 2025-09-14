@@ -345,13 +345,39 @@ function diagnoseSystem() {
                     }
                 }
             }
+            
+            // 测试内存占用检测
+            $memory_result = getProcessMemory($service);
+            $result .= "  内存占用检测结果: {$memory_result}\n";
         } else {
             $result .= "✗ {$service} 进程未运行\n";
         }
     }
     
+    // 显示所有进程列表（用于调试）
+    $result .= "\n6. 所有进程列表（调试用）:\n";
+    $all_processes = shell_exec("ps aux 2>/dev/null");
+    if ($all_processes) {
+        $lines = explode("\n", $all_processes);
+        $relevant_processes = [];
+        foreach ($lines as $line) {
+            if (stripos($line, 'php') !== false || 
+                stripos($line, 'nginx') !== false || 
+                stripos($line, 'redis') !== false) {
+                $relevant_processes[] = trim($line);
+            }
+        }
+        if (!empty($relevant_processes)) {
+            foreach ($relevant_processes as $proc) {
+                $result .= "  " . $proc . "\n";
+            }
+        } else {
+            $result .= "  未找到相关进程\n";
+        }
+    }
+    
     // 检查端口
-    $result .= "\n6. 检查端口:\n";
+    $result .= "\n7. 检查端口:\n";
     $ports = ['8080', '6379'];
     foreach ($ports as $port) {
         $port_check = shell_exec("netstat -tlnp 2>/dev/null | grep :{$port} || ss -tlnp 2>/dev/null | grep :{$port}");

@@ -6,6 +6,29 @@ on:
     paths:
       - README.md
       - .github/workflows/dockerhub-description.yaml
+  workflow_dispatch:
+    inputs:
+      repository:
+        description: 'Docker Hub 仓库名称'
+        required: true
+        default: 'zhoujie218/php-nginx'
+        type: string
+      short_description:
+        description: '简短描述'
+        required: false
+        default: ''
+        type: string
+
+# 注意：此工作流需要设置以下 GitHub Secrets：
+# - DOCKERHUB_USERNAME: Docker Hub 用户名
+# - DOCKERHUB_PASSWORD: Docker Hub 密码或访问令牌
+# 如果没有设置这些 secrets，工作流将会失败
+#
+# 触发方式：
+# 1. 自动触发：当 main 分支的 README.md 或此工作流文件发生变化时
+# 2. 手动触发：在 GitHub Actions 页面点击 "Run workflow" 按钮
+#    手动触发时可以自定义仓库名称和简短描述
+
 jobs:
   dockerHubDescription:
     runs-on: ubuntu-latest
@@ -17,5 +40,5 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
-          repository: zhoujie218/php-nginx
-          short-description: ${{ github.event.repository.description }}
+          repository: ${{ inputs.repository || 'zhoujie218/php-nginx' }}
+          short-description: ${{ inputs.short_description || github.event.repository.description }}
