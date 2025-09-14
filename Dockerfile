@@ -48,6 +48,8 @@ COPY config/redis.conf /etc/redis.conf
 
 # Copy supervisord configuration
 COPY config/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+# Create symlink for supervisorctl compatibility
+RUN ln -sf /etc/supervisor/conf.d/supervisord.conf /etc/supervisord.conf
 
 # Make sure files/folders needed by the processes are accessable when they run under the nobody user
 RUN chown -R nobody:nobody /var/www/html /run /var/lib/nginx /var/log/nginx && \

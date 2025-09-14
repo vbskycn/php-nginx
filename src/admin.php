@@ -27,11 +27,13 @@ if ($is_authenticated && isset($_POST['action'])) {
             $supervisor_config = '/etc/supervisor/conf.d/supervisord.conf';
             $result = shell_exec("supervisorctl -c {$supervisor_config} status 2>&1");
             if (!$result || strpos($result, 'error') !== false || strpos($result, '.ini file does not include supervisorctl section') !== false ||
-                strpos($result, 'no such file') !== false || strpos($result, 'unix:///run/supervisor.sock') !== false) {
+                strpos($result, 'no such file') !== false || strpos($result, 'unix:///run/supervisor.sock') !== false ||
+                strpos($result, 'could not read config file') !== false) {
                 $result = shell_exec('supervisorctl status 2>&1');
                 if (!$result || strpos($result, 'error') !== false || strpos($result, '.ini file does not include supervisorctl section') !== false ||
-                    strpos($result, 'no such file') !== false || strpos($result, 'unix:///run/supervisor.sock') !== false) {
-                    $result = "Supervisord socket 文件不存在，显示进程状态:\n" . shell_exec('ps aux | grep -E "(php-fpm|nginx|redis)" | grep -v grep 2>&1');
+                    strpos($result, 'no such file') !== false || strpos($result, 'unix:///run/supervisor.sock') !== false ||
+                    strpos($result, 'could not read config file') !== false) {
+                    $result = "Supervisord 配置问题，显示进程状态:\n" . shell_exec('ps aux | grep -E "(php-fpm|nginx|redis)" | grep -v grep 2>&1');
                 }
             }
             break;
@@ -80,7 +82,8 @@ function getServiceStatus() {
     if (!$status || strpos($status, 'error') !== false || strpos($status, 'not read config') !== false || 
         strpos($status, '.ini file does not include supervisorctl section') !== false ||
         strpos($status, 'no such file') !== false ||
-        strpos($status, 'unix:///run/supervisor.sock') !== false) {
+        strpos($status, 'unix:///run/supervisor.sock') !== false ||
+        strpos($status, 'could not read config file') !== false) {
         // 直接检查进程状态
         $services = checkProcessStatus();
     } else {
@@ -151,9 +154,10 @@ function restartService($process_name, $service_name) {
         strpos($supervisor_result, 'not read config') !== false || 
         strpos($supervisor_result, '.ini file does not include supervisorctl section') !== false ||
         strpos($supervisor_result, 'no such file') !== false ||
-        strpos($supervisor_result, 'unix:///run/supervisor.sock') !== false) {
+        strpos($supervisor_result, 'unix:///run/supervisor.sock') !== false ||
+        strpos($supervisor_result, 'could not read config file') !== false) {
         
-        $result .= "Supervisord socket 文件不存在，尝试其他方法...\n";
+        $result .= "Supervisord 配置问题，尝试其他方法...\n";
         
         // 方法1: 尝试使用默认配置
         $default_result = shell_exec("supervisorctl restart {$service_name} 2>&1");
@@ -304,13 +308,26 @@ function diagnoseSystem() {
     foreach ($config_files as $config) {
         if (file_exists($config)) {
             $result .= "✓ 配置文件存在: {$config}\n";
+            if (is_link($config)) {
+                $link_target = readlink($config);
+                $result .= "  → 符号链接指向: {$link_target}\n";
+            }
         } else {
             $result .= "✗ 配置文件不存在: {$config}\n";
         }
     }
     
+    // 检查符号链接
+    $result .= "\n4. 检查符号链接:\n";
+    if (file_exists('/etc/supervisord.conf') && is_link('/etc/supervisord.conf')) {
+        $link_target = readlink('/etc/supervisord.conf');
+        $result .= "✓ 符号链接存在: /etc/supervisord.conf → {$link_target}\n";
+    } else {
+        $result .= "✗ 符号链接不存在或无效: /etc/supervisord.conf\n";
+    }
+    
     // 检查服务进程
-    $result .= "\n4. 检查服务进程:\n";
+    $result .= "\n5. 检查服务进程:\n";
     $services = ['php-fpm84', 'nginx', 'redis-server'];
     foreach ($services as $service) {
         $process = shell_exec("pgrep -f '{$service}' 2>/dev/null");
@@ -322,7 +339,7 @@ function diagnoseSystem() {
     }
     
     // 检查端口
-    $result .= "\n5. 检查端口:\n";
+    $result .= "\n6. 检查端口:\n";
     $ports = ['8080', '6379'];
     foreach ($ports as $port) {
         $port_check = shell_exec("netstat -tlnp 2>/dev/null | grep :{$port} || ss -tlnp 2>/dev/null | grep :{$port}");
@@ -334,7 +351,7 @@ function diagnoseSystem() {
     }
     
     // 检查权限
-    $result .= "\n6. 检查目录权限:\n";
+    $result .= "\n7. 检查目录权限:\n";
     $dirs = ['/run', '/run/supervisor', '/var/www/html'];
     foreach ($dirs as $dir) {
         if (is_dir($dir)) {
