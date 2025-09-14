@@ -24,6 +24,7 @@ env:
   IMAGE_NAME: zhoujie218/php-nginx
   IMAGE_TAG: ${{ github.sha }}
   DOCKER_BUILDKIT: 1
+  BUILDX_NO_DEFAULT_ATTESTATIONS: 1
 
 jobs:
   build:
@@ -99,23 +100,31 @@ jobs:
       - name: Build multi-arch image and push latest tag
         if: (github.ref == 'refs/heads/main' && github.event_name == 'push') || (github.event_name == 'workflow_dispatch' && github.event.inputs.push_to_dockerhub == 'true')
         run: |-
+          echo "开始构建多架构镜像 - $(date)"
           docker buildx build \
-            --cache-from=$IMAGE_NAME:latest \
+            --cache-from=type=registry,ref=$IMAGE_NAME:buildcache \
+            --cache-to=type=registry,ref=$IMAGE_NAME:buildcache,mode=max \
             --push \
             -t $IMAGE_NAME:latest \
             --platform linux/amd64,linux/arm64,linux/arm/v7,linux/arm/v6 \
+            --build-arg BUILDKIT_INLINE_CACHE=1 \
             .
+          echo "构建完成 - $(date)"
 
       - name: Build multi-arch image and push release tag
         if: contains(github.ref, 'refs/tags/')
         run: |-
+          echo "开始构建版本标签镜像 - $(date)"
           docker buildx build \
-            --cache-from=$IMAGE_NAME:latest \
+            --cache-from=type=registry,ref=$IMAGE_NAME:buildcache \
+            --cache-to=type=registry,ref=$IMAGE_NAME:buildcache,mode=max \
             --push \
             -t $IMAGE_NAME:${{ steps.extract_version.outputs.VERSION }} \
             -t $IMAGE_NAME:${{ steps.extract_version.outputs.TAG_NAME }} \
             --platform linux/amd64,linux/arm64,linux/arm/v7,linux/arm/v6 \
+            --build-arg BUILDKIT_INLINE_CACHE=1 \
             .
+          echo "版本标签构建完成 - $(date)"
 
       - name: Create GitHub Release
         if: contains(github.ref, 'refs/tags/')

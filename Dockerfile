@@ -5,7 +5,7 @@ LABEL Description="Lightweight container with Nginx 1.26 & PHP 8.4 based on Alpi
 # Setup document root
 WORKDIR /var/www/html
 
-# Install packages and remove default server definition
+# Install packages and create symlink in one layer for better caching
 RUN apk add --no-cache \
   curl \
   nginx \
@@ -29,25 +29,17 @@ RUN apk add --no-cache \
   php84-xmlreader \
   php84-xmlwriter \
   redis \
-  supervisor
+  supervisor \
+  && ln -s /usr/bin/php84 /usr/bin/php
 
-RUN ln -s /usr/bin/php84 /usr/bin/php
-
-# Configure nginx - http
-COPY config/nginx.conf /etc/nginx/nginx.conf
-# Configure nginx - default server
-COPY config/conf.d /etc/nginx/conf.d/
-
-# Configure PHP-FPM
+# Configure all services in one layer for better caching
 ENV PHP_INI_DIR /etc/php84
-COPY config/fpm-pool.conf ${PHP_INI_DIR}/php-fpm.d/www.conf
-COPY config/php.ini ${PHP_INI_DIR}/conf.d/custom.ini
-
-# Configure Redis
-COPY config/redis.conf /etc/redis.conf
-
-# Configure supervisord
-COPY config/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+COPY config/nginx.conf /etc/nginx/nginx.conf \
+     config/conf.d /etc/nginx/conf.d/ \
+     config/fpm-pool.conf ${PHP_INI_DIR}/php-fpm.d/www.conf \
+     config/php.ini ${PHP_INI_DIR}/conf.d/custom.ini \
+     config/redis.conf /etc/redis.conf \
+     config/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 # Make sure files/folders needed by the processes are accessable when they run under the nobody user
 RUN chown -R nobody:nobody /var/www/html /run /var/lib/nginx /var/log/nginx
