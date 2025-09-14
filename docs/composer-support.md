@@ -1,4 +1,5 @@
-# Adding composer
+# Adding composer 
+# redis
 
 If you need [Composer](https://getcomposer.org/) in your project, here's an easy way to add it.
 
