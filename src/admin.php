@@ -24,9 +24,13 @@ if ($is_authenticated && isset($_POST['action'])) {
             $result = restartAllServices();
             break;
         case 'status':
-            $result = shell_exec('supervisorctl status 2>&1');
+            $supervisor_config = '/etc/supervisor/conf.d/supervisord.conf';
+            $result = shell_exec("supervisorctl -c {$supervisor_config} status 2>&1");
             if (!$result || strpos($result, 'error') !== false) {
-                $result = "Supervisord 状态:\n" . shell_exec('ps aux | grep -E "(php-fpm|nginx|redis)" | grep -v grep 2>&1');
+                $result = shell_exec('supervisorctl status 2>&1');
+                if (!$result || strpos($result, 'error') !== false) {
+                    $result = "Supervisord 状态:\n" . shell_exec('ps aux | grep -E "(php-fpm|nginx|redis)" | grep -v grep 2>&1');
+                }
             }
             break;
         case 'clear_redis':
@@ -44,6 +48,9 @@ if ($is_authenticated && isset($_POST['action'])) {
             phpinfo();
             $result = ob_get_clean();
             break;
+        case 'container_restart':
+            $result = restartContainer();
+            break;
     }
 }
 
@@ -51,15 +58,18 @@ if ($is_authenticated && isset($_POST['action'])) {
 function getServiceStatus() {
     $services = [];
     
-    // 尝试不同的 supervisord 配置路径
-    $config_paths = [
-        '/etc/supervisor/conf.d/supervisord.conf',
-        '/etc/supervisord.conf',
-        '/usr/local/etc/supervisord.conf'
-    ];
+    // 在容器环境中使用正确的 supervisord 配置路径
+    $supervisor_config = '/etc/supervisor/conf.d/supervisord.conf';
     
-    $status_cmd = 'supervisorctl status 2>&1';
+    // 尝试使用正确的配置文件路径
+    $status_cmd = "supervisorctl -c {$supervisor_config} status 2>&1";
     $status = shell_exec($status_cmd);
+    
+    // 如果失败，尝试默认路径
+    if (!$status || strpos($status, 'error') !== false || strpos($status, 'not read config') !== false) {
+        $status_cmd = 'supervisorctl status 2>&1';
+        $status = shell_exec($status_cmd);
+    }
     
     // 如果 supervisord 命令失败，尝试直接检查进程
     if (!$status || strpos($status, 'error') !== false || strpos($status, 'not read config') !== false) {
@@ -122,35 +132,58 @@ function checkProcessStatus() {
 function restartService($process_name, $service_name) {
     $result = '';
     
+    // 在容器环境中，我们需要使用正确的 supervisord 配置路径
+    $supervisor_config = '/etc/supervisor/conf.d/supervisord.conf';
+    
     // 首先尝试使用 supervisord
-    $supervisor_result = shell_exec("supervisorctl restart {$service_name} 2>&1");
+    $supervisor_result = shell_exec("supervisorctl -c {$supervisor_config} restart {$service_name} 2>&1");
     
     if (!$supervisor_result || strpos($supervisor_result, 'error') !== false || strpos($supervisor_result, 'not read config') !== false) {
-        // 如果 supervisord 失败，直接重启进程
-        $result .= "Supervisord 不可用，直接重启进程...\n";
+        // 如果 supervisord 失败，尝试其他方法
+        $result .= "Supervisord 重启失败，尝试其他方法...\n";
         
-        // 杀死现有进程
-        $kill_result = shell_exec("pkill -f '{$process_name}' 2>&1");
-        $result .= "停止进程: {$kill_result}\n";
-        
-        // 等待一秒
-        sleep(1);
-        
-        // 启动服务
-        if ($process_name === 'php-fpm84') {
-            $start_result = shell_exec("php-fpm84 -F > /dev/null 2>&1 &");
-        } elseif ($process_name === 'nginx') {
-            $start_result = shell_exec("nginx -g 'daemon off;' > /dev/null 2>&1 &");
-        } elseif ($process_name === 'redis-server') {
-            $start_result = shell_exec("redis-server /etc/redis.conf > /dev/null 2>&1 &");
+        // 方法1: 尝试使用默认配置
+        $default_result = shell_exec("supervisorctl restart {$service_name} 2>&1");
+        if ($default_result && strpos($default_result, 'error') === false) {
+            $result = $default_result;
+        } else {
+            // 方法2: 发送信号重启进程
+            $result .= "尝试发送信号重启进程...\n";
+            
+            // 获取进程PID
+            $pid = shell_exec("pgrep -f '{$process_name}' 2>/dev/null | head -1");
+            if ($pid) {
+                $pid = trim($pid);
+                $result .= "找到进程 PID: {$pid}\n";
+                
+                // 发送 USR1 信号给 nginx，TERM 信号给其他进程
+                if ($process_name === 'nginx') {
+                    $signal_result = shell_exec("kill -USR1 {$pid} 2>&1");
+                    $result .= "发送 USR1 信号给 Nginx: {$signal_result}\n";
+                } else {
+                    $signal_result = shell_exec("kill -TERM {$pid} 2>&1");
+                    $result .= "发送 TERM 信号给进程: {$signal_result}\n";
+                    
+                    // 等待进程停止
+                    sleep(2);
+                    
+                    // 检查进程是否还在运行
+                    $still_running = shell_exec("pgrep -f '{$process_name}' 2>/dev/null");
+                    if ($still_running) {
+                        $result .= "进程仍在运行，强制终止...\n";
+                        shell_exec("kill -KILL {$pid} 2>&1");
+                        sleep(1);
+                    }
+                }
+                
+                // 检查重启结果
+                sleep(2);
+                $check_result = shell_exec("pgrep -f '{$process_name}' > /dev/null 2>&1 && echo 'SUCCESS' || echo 'FAILED'");
+                $result .= "重启结果: " . trim($check_result) . "\n";
+            } else {
+                $result .= "未找到运行中的 {$service_name} 进程\n";
+            }
         }
-        
-        $result .= "启动 {$service_name} 服务\n";
-        
-        // 检查是否启动成功
-        sleep(2);
-        $check_result = shell_exec("pgrep -f '{$process_name}' > /dev/null 2>&1 && echo 'SUCCESS' || echo 'FAILED'");
-        $result .= "启动结果: " . trim($check_result) . "\n";
     } else {
         $result = $supervisor_result;
     }
@@ -172,6 +205,43 @@ function restartAllServices() {
         $result .= "=== 重启 {$service['name']} ===\n";
         $result .= restartService($service['process'], $service['name']);
         $result .= "\n";
+    }
+    
+    return $result;
+}
+
+// 重启容器（最安全的方法）
+function restartContainer() {
+    $result = '';
+    
+    // 检查是否在容器环境中
+    if (file_exists('/.dockerenv')) {
+        $result .= "检测到容器环境，尝试重启容器...\n";
+        
+        // 方法1: 尝试使用 docker 命令（如果可用）
+        $docker_result = shell_exec('docker restart $(hostname) 2>&1');
+        if ($docker_result) {
+            $result .= "Docker 重启结果: {$docker_result}\n";
+        } else {
+            // 方法2: 发送信号给主进程
+            $result .= "Docker 命令不可用，尝试其他方法...\n";
+            
+            // 获取主进程 PID (supervisord)
+            $main_pid = shell_exec('pgrep -f "supervisord" 2>/dev/null | head -1');
+            if ($main_pid) {
+                $main_pid = trim($main_pid);
+                $result .= "找到主进程 PID: {$main_pid}\n";
+                
+                // 发送 TERM 信号给主进程，让容器优雅退出
+                $signal_result = shell_exec("kill -TERM {$main_pid} 2>&1");
+                $result .= "发送 TERM 信号: {$signal_result}\n";
+                $result .= "容器将优雅退出，Docker 会自动重启容器\n";
+            } else {
+                $result .= "未找到主进程，无法重启容器\n";
+            }
+        }
+    } else {
+        $result .= "不在容器环境中，无法执行容器重启\n";
     }
     
     return $result;
@@ -374,7 +444,7 @@ $systemInfo = getSystemInfo();
                         <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
                             <form method="POST" class="inline">
                                 <input type="hidden" name="action" value="restart_php">
-                                <button type="submit" class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 btn">
+                                <button type="submit" class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 btn" onclick="return confirm('确定要重启 PHP-FPM 服务吗？')">
                                     <i class="fas fa-redo mr-2"></i>
                                     重启 PHP
                                 </button>
@@ -382,7 +452,7 @@ $systemInfo = getSystemInfo();
                             
                             <form method="POST" class="inline">
                                 <input type="hidden" name="action" value="restart_nginx">
-                                <button type="submit" class="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 btn">
+                                <button type="submit" class="w-full bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 btn" onclick="return confirm('确定要重启 Nginx 服务吗？这可能会暂时中断网站访问。')">
                                     <i class="fas fa-redo mr-2"></i>
                                     重启 Nginx
                                 </button>
@@ -390,7 +460,7 @@ $systemInfo = getSystemInfo();
                             
                             <form method="POST" class="inline">
                                 <input type="hidden" name="action" value="restart_redis">
-                                <button type="submit" class="w-full bg-red-600 text-white py-2 px-4 rounded-md hover:bg-red-700 btn">
+                                <button type="submit" class="w-full bg-red-600 text-white py-2 px-4 rounded-md hover:bg-red-700 btn" onclick="return confirm('确定要重启 Redis 服务吗？这可能会丢失未保存的缓存数据。')">
                                     <i class="fas fa-redo mr-2"></i>
                                     重启 Redis
                                 </button>
@@ -398,7 +468,7 @@ $systemInfo = getSystemInfo();
                             
                             <form method="POST" class="inline">
                                 <input type="hidden" name="action" value="restart_all">
-                                <button type="submit" class="w-full bg-purple-600 text-white py-2 px-4 rounded-md hover:bg-purple-700 btn">
+                                <button type="submit" class="w-full bg-purple-600 text-white py-2 px-4 rounded-md hover:bg-purple-700 btn" onclick="return confirm('确定要重启所有服务吗？这可能会暂时中断网站访问。')">
                                     <i class="fas fa-power-off mr-2"></i>
                                     重启全部
                                 </button>
@@ -406,7 +476,7 @@ $systemInfo = getSystemInfo();
                         </div>
 
                         <!-- 其他操作 -->
-                        <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div class="mt-4 grid grid-cols-1 md:grid-cols-4 gap-3">
                             <form method="POST" class="inline">
                                 <input type="hidden" name="action" value="status">
                                 <button type="submit" class="w-full bg-gray-600 text-white py-2 px-4 rounded-md hover:bg-gray-700 btn">
@@ -417,7 +487,7 @@ $systemInfo = getSystemInfo();
                             
                             <form method="POST" class="inline">
                                 <input type="hidden" name="action" value="clear_redis">
-                                <button type="submit" class="w-full bg-yellow-600 text-white py-2 px-4 rounded-md hover:bg-yellow-700 btn">
+                                <button type="submit" class="w-full bg-yellow-600 text-white py-2 px-4 rounded-md hover:bg-yellow-700 btn" onclick="return confirm('确定要清空所有 Redis 缓存数据吗？')">
                                     <i class="fas fa-trash mr-2"></i>
                                     清空 Redis
                                 </button>
@@ -428,6 +498,14 @@ $systemInfo = getSystemInfo();
                                 <button type="submit" class="w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 btn">
                                     <i class="fas fa-code mr-2"></i>
                                     PHP 信息
+                                </button>
+                            </form>
+                            
+                            <form method="POST" class="inline">
+                                <input type="hidden" name="action" value="container_restart">
+                                <button type="submit" class="w-full bg-orange-600 text-white py-2 px-4 rounded-md hover:bg-orange-700 btn" onclick="return confirm('确定要重启整个容器吗？这将重启所有服务，网站会暂时不可访问。')">
+                                    <i class="fas fa-sync-alt mr-2"></i>
+                                    重启容器
                                 </button>
                             </form>
                         </div>
