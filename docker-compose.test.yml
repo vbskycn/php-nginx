@@ -6,6 +6,4 @@ services:
     image: alpine:3.21
     depends_on:
       - app
-    command: /tmp/run_tests.sh
-    volumes:
-      - "./run_tests.sh:/tmp/run_tests.sh:ro"
+    command: sh -c "apk --no-cache add curl && curl --silent --fail http://app:8080 | grep 'PHP 8.4'"
