@@ -72,13 +72,11 @@ _注意：因为`-v`需要绝对路径，我在示例中添加了`pwd`来返回�
 
 ## 文档和示例
 
-要修改此容器以满足您的特定需求，请查看以下示例：
+要修改此容器以满足您的特定需求，请查看以下文档：
 
-* [添加xdebug支持](https://github.com/zhoujie218/php-nginx/blob/main/docs/xdebug-support.md)
-* [添加composer](https://github.com/zhoujie218/php-nginx/blob/main/docs/composer-support.md)
-* [获取负载均衡器后客户端的真实IP](https://github.com/zhoujie218/php-nginx/blob/main/docs/real-ip-behind-loadbalancer.md)
-* [发送邮件](https://github.com/zhoujie218/php-nginx/blob/main/docs/sending-emails.md)
-* [启用HTTPS](https://github.com/zhoujie218/php-nginx/blob/main/docs/enable-https.md)
+* [🔧 技术文档](docs/技术文档.md) - 技术栈介绍、配置说明、扩展功能
+* [🚀 部署指南](docs/部署指南.md) - 工作流触发、版本管理、镜像使用
+* [📖 项目指南](docs/项目指南.md) - 贡献指南、开发指南、代码规范
 
 
 
