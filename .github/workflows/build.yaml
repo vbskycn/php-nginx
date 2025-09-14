@@ -41,9 +41,16 @@ jobs:
           echo "Build triggered by: ${{ github.event_name }}"
           echo "Current branch: $(git branch --show-current)"
           echo "Commit SHA: ${{ github.sha }}"
+          echo "Git ref: ${{ github.ref }}"
+          echo "Is main branch push: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' }}"
+          echo "Is tag push: ${{ contains(github.ref, 'refs/tags/') }}"
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "Manual build - Branch: ${{ github.event.inputs.branch || 'current' }}"
             echo "Push to Docker Hub: ${{ github.event.inputs.push_to_dockerhub }}"
+          fi
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "⚠️  This is a Pull Request build - Docker push and Release creation will be skipped"
+            echo "💡 To trigger Docker build and Release, push directly to main branch or create a version tag"
           fi
 
       - name: Extract version from tag
@@ -111,6 +118,16 @@ jobs:
             .
           echo "构建完成 - $(date)"
 
+      - name: Skip Docker build (not main branch push)
+        if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref != 'refs/heads/main')
+        run: |
+          echo "⏭️  Skipping Docker build and push"
+          echo "Reason: This is not a main branch push"
+          echo "To trigger Docker build:"
+          echo "  1. Push directly to main branch, or"
+          echo "  2. Create a version tag (e.g., v1.0.0), or"
+          echo "  3. Use manual workflow dispatch with 'Push to Docker Hub' enabled"
+
       - name: Build multi-arch image and push release tag
         if: contains(github.ref, 'refs/tags/')
         run: |-
@@ -160,3 +177,12 @@ jobs:
             请查看 [提交历史](https://github.com/${{ github.repository }}/compare/${{ github.event.before }}...${{ github.sha }}) 了解详细变更。
           draft: false
           prerelease: false
+
+      - name: Skip Release creation (not a tag push)
+        if: github.event_name != 'push' || !contains(github.ref, 'refs/tags/')
+        run: |
+          echo "⏭️  Skipping GitHub Release creation"
+          echo "Reason: This is not a tag push"
+          echo "To create a Release:"
+          echo "  1. Create and push a version tag: git tag v1.0.0 && git push origin v1.0.0"
+          echo "  2. Or use format: git tag 1.0.0 && git push origin 1.0.0"
