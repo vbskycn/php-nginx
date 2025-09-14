@@ -21,7 +21,7 @@ on:
 
 # 注意：此工作流需要设置以下 GitHub Secrets：
 # - DOCKERHUB_USERNAME: Docker Hub 用户名
-# - DOCKERHUB_PASSWORD: Docker Hub 密码或访问令牌
+# - DOCKERHUB_TOKEN: Docker Hub 访问令牌
 # 如果没有设置这些 secrets，工作流将会失败
 #
 # 触发方式：
@@ -39,6 +39,6 @@ jobs:
         uses: peter-evans/dockerhub-description@v4
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
           repository: ${{ inputs.repository || 'zhoujie218/php-nginx' }}
           short-description: ${{ inputs.short_description || github.event.repository.description }}
