@@ -79,3 +79,9 @@ _注意：因为`-v`需要绝对路径，我在示例中添加了`pwd`来返回�
 * [获取负载均衡器后客户端的真实IP](https://github.com/zhoujie218/php-nginx/blob/main/docs/real-ip-behind-loadbalancer.md)
 * [发送邮件](https://github.com/zhoujie218/php-nginx/blob/main/docs/sending-emails.md)
 * [启用HTTPS](https://github.com/zhoujie218/php-nginx/blob/main/docs/enable-https.md)
+
+
+
+## 致谢
+
+本项目基于[TrafeX/docker-php-nginx](https://github.com/TrafeX/docker-php-nginx) 进行优化和改进，感谢原作[@TrafeX](https://github.com/TrafeX) 提供的优秀基础项目
