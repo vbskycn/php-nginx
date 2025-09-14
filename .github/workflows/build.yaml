@@ -1,7 +1,7 @@
 name: Test & build Docker image
 
 permissions:
-  contents: read
+  contents: write
   security-events: write
   actions: read
 
@@ -153,8 +153,24 @@ jobs:
           echo "  2. Create a version tag (e.g., v1.0.0), or"
           echo "  3. Use manual workflow dispatch with 'Push to Docker Hub' enabled"
 
-      - name: Create GitHub Release
+      - name: Check if tag exists
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        id: check_tag
+        run: |
+          TAG_NAME="${{ steps.parse_version.outputs.TAG_NAME }}"
+          echo "Checking if tag $TAG_NAME exists..."
+          
+          # 检查标签是否存在
+          if git rev-parse "$TAG_NAME" >/dev/null 2>&1; then
+            echo "Tag $TAG_NAME already exists"
+            echo "TAG_EXISTS=true" >> $GITHUB_OUTPUT
+          else
+            echo "Tag $TAG_NAME does not exist"
+            echo "TAG_EXISTS=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create GitHub Release
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push' && steps.check_tag.outputs.TAG_EXISTS == 'false'
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ steps.parse_version.outputs.TAG_NAME }}
@@ -194,6 +210,13 @@ jobs:
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Skip Release creation (tag already exists)
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push' && steps.check_tag.outputs.TAG_EXISTS == 'true'
+        run: |
+          echo "⏭️  Skipping GitHub Release creation"
+          echo "Reason: Tag ${{ steps.parse_version.outputs.TAG_NAME }} already exists"
+          echo "If you want to create a new release, please update the version in the version file"
 
       - name: Skip Release creation (not main branch push)
         if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref != 'refs/heads/main')
