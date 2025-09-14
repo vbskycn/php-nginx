@@ -26,10 +26,10 @@ if ($is_authenticated && isset($_POST['action'])) {
         case 'status':
             $supervisor_config = '/etc/supervisor/conf.d/supervisord.conf';
             $result = shell_exec("supervisorctl -c {$supervisor_config} status 2>&1");
-            if (!$result || strpos($result, 'error') !== false) {
+            if (!$result || strpos($result, 'error') !== false || strpos($result, '.ini file does not include supervisorctl section') !== false) {
                 $result = shell_exec('supervisorctl status 2>&1');
-                if (!$result || strpos($result, 'error') !== false) {
-                    $result = "Supervisord 状态:\n" . shell_exec('ps aux | grep -E "(php-fpm|nginx|redis)" | grep -v grep 2>&1');
+                if (!$result || strpos($result, 'error') !== false || strpos($result, '.ini file does not include supervisorctl section') !== false) {
+                    $result = "Supervisord 配置问题，显示进程状态:\n" . shell_exec('ps aux | grep -E "(php-fpm|nginx|redis)" | grep -v grep 2>&1');
                 }
             }
             break;
@@ -72,7 +72,8 @@ function getServiceStatus() {
     }
     
     // 如果 supervisord 命令失败，尝试直接检查进程
-    if (!$status || strpos($status, 'error') !== false || strpos($status, 'not read config') !== false) {
+    if (!$status || strpos($status, 'error') !== false || strpos($status, 'not read config') !== false || 
+        strpos($status, '.ini file does not include supervisorctl section') !== false) {
         // 直接检查进程状态
         $services = checkProcessStatus();
     } else {
@@ -138,13 +139,17 @@ function restartService($process_name, $service_name) {
     // 首先尝试使用 supervisord
     $supervisor_result = shell_exec("supervisorctl -c {$supervisor_config} restart {$service_name} 2>&1");
     
-    if (!$supervisor_result || strpos($supervisor_result, 'error') !== false || strpos($supervisor_result, 'not read config') !== false) {
-        // 如果 supervisord 失败，尝试其他方法
-        $result .= "Supervisord 重启失败，尝试其他方法...\n";
+    // 检查是否包含 .ini 文件错误
+    if (!$supervisor_result || strpos($supervisor_result, 'error') !== false || 
+        strpos($supervisor_result, 'not read config') !== false || 
+        strpos($supervisor_result, '.ini file does not include supervisorctl section') !== false) {
+        
+        $result .= "Supervisord 配置问题，尝试其他方法...\n";
         
         // 方法1: 尝试使用默认配置
         $default_result = shell_exec("supervisorctl restart {$service_name} 2>&1");
-        if ($default_result && strpos($default_result, 'error') === false) {
+        if ($default_result && strpos($default_result, 'error') === false && 
+            strpos($default_result, '.ini file does not include supervisorctl section') === false) {
             $result = $default_result;
         } else {
             // 方法2: 发送信号重启进程
