@@ -3,8 +3,11 @@ name: Test & build Docker image
 on:
   push:
     branches: [main]
-    tags: ["v*", "[0-9]+.[0-9]+.[0-9]+*"]
+    paths:
+      - 'version'
   pull_request:
+    paths:
+      - 'version'
   # schedule:
   #   - cron: "0 2 * * 6"
   workflow_dispatch:
@@ -43,28 +46,42 @@ jobs:
           echo "Commit SHA: ${{ github.sha }}"
           echo "Git ref: ${{ github.ref }}"
           echo "Is main branch push: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' }}"
-          echo "Is tag push: ${{ contains(github.ref, 'refs/tags/') }}"
+          echo "Version file monitoring: ENABLED"
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "Manual build - Branch: ${{ github.event.inputs.branch || 'current' }}"
             echo "Push to Docker Hub: ${{ github.event.inputs.push_to_dockerhub }}"
           fi
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             echo "⚠️  This is a Pull Request build - Docker push and Release creation will be skipped"
-            echo "💡 To trigger Docker build and Release, push directly to main branch or create a version tag"
+            echo "💡 To trigger Docker build and Release, update version file and push to main branch"
           fi
 
-      - name: Extract version from tag
-        if: contains(github.ref, 'refs/tags/')
-        id: extract_version
+      - name: Parse version from file
+        id: parse_version
         run: |
-          # 提取版本号，支持 v1.0.0 和 1.0.0 格式
-          VERSION=${GITHUB_REF#refs/tags/}
-          # 移除 v 前缀（如果存在）
-          VERSION=${VERSION#v}
+          # 读取version文件内容
+          VERSION_CONTENT=$(cat version)
+          echo "Version file content: $VERSION_CONTENT"
+          
+          # 解析名称和版本号 (格式: name:version)
+          if [[ $VERSION_CONTENT == *":"* ]]; then
+            NAME=$(echo $VERSION_CONTENT | cut -d':' -f1)
+            VERSION=$(echo $VERSION_CONTENT | cut -d':' -f2)
+          else
+            # 兼容旧格式，只有版本号
+            NAME="php-nginx"
+            VERSION=$VERSION_CONTENT
+          fi
+          
+          echo "NAME=$NAME" >> $GITHUB_OUTPUT
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
-          echo "TAG_NAME=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
-          echo "Extracted version: $VERSION"
-          echo "Tag name: ${GITHUB_REF#refs/tags/}"
+          echo "TAG_NAME=v$VERSION" >> $GITHUB_OUTPUT
+          echo "FULL_TAG_NAME=$NAME:$VERSION" >> $GITHUB_OUTPUT
+          
+          echo "Parsed name: $NAME"
+          echo "Parsed version: $VERSION"
+          echo "Tag name: v$VERSION"
+          echo "Full tag: $NAME:$VERSION"
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -108,11 +125,14 @@ jobs:
         if: (github.ref == 'refs/heads/main' && github.event_name == 'push') || (github.event_name == 'workflow_dispatch' && github.event.inputs.push_to_dockerhub == 'true')
         run: |-
           echo "开始构建多架构镜像 - $(date)"
+          echo "构建镜像: ${{ steps.parse_version.outputs.NAME }}"
+          echo "版本: ${{ steps.parse_version.outputs.VERSION }}"
           docker buildx build \
             --cache-from=type=registry,ref=$IMAGE_NAME:buildcache \
             --cache-to=type=registry,ref=$IMAGE_NAME:buildcache,mode=max \
             --push \
             -t $IMAGE_NAME:latest \
+            -t $IMAGE_NAME:${{ steps.parse_version.outputs.VERSION }} \
             --platform linux/amd64,linux/arm64,linux/arm/v7,linux/arm/v6 \
             --build-arg BUILDKIT_INLINE_CACHE=1 \
             .
@@ -128,35 +148,24 @@ jobs:
           echo "  2. Create a version tag (e.g., v1.0.0), or"
           echo "  3. Use manual workflow dispatch with 'Push to Docker Hub' enabled"
 
-      - name: Build multi-arch image and push release tag
-        if: contains(github.ref, 'refs/tags/')
-        run: |-
-          echo "开始构建版本标签镜像 - $(date)"
-          docker buildx build \
-            --cache-from=type=registry,ref=$IMAGE_NAME:buildcache \
-            --cache-to=type=registry,ref=$IMAGE_NAME:buildcache,mode=max \
-            --push \
-            -t $IMAGE_NAME:${{ steps.extract_version.outputs.VERSION }} \
-            -t $IMAGE_NAME:${{ steps.extract_version.outputs.TAG_NAME }} \
-            --platform linux/amd64,linux/arm64,linux/arm/v7,linux/arm/v6 \
-            --build-arg BUILDKIT_INLINE_CACHE=1 \
-            .
-          echo "版本标签构建完成 - $(date)"
-
       - name: Create GitHub Release
-        if: contains(github.ref, 'refs/tags/')
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         uses: actions/create-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ steps.extract_version.outputs.TAG_NAME }}
-          release_name: Release ${{ steps.extract_version.outputs.TAG_NAME }}
+          tag_name: ${{ steps.parse_version.outputs.TAG_NAME }}
+          release_name: Release ${{ steps.parse_version.outputs.TAG_NAME }}
           body: |
-            ## Docker Image Release ${{ steps.extract_version.outputs.TAG_NAME }}
+            ## Docker Image Release ${{ steps.parse_version.outputs.TAG_NAME }}
+            
+            ### 镜像信息
+            - **名称**: ${{ steps.parse_version.outputs.NAME }}
+            - **版本**: ${{ steps.parse_version.outputs.VERSION }}
             
             ### 镜像标签
-            - `${{ env.IMAGE_NAME }}:${{ steps.extract_version.outputs.VERSION }}`
-            - `${{ env.IMAGE_NAME }}:${{ steps.extract_version.outputs.TAG_NAME }}`
+            - `${{ env.IMAGE_NAME }}:latest`
+            - `${{ env.IMAGE_NAME }}:${{ steps.parse_version.outputs.VERSION }}`
             
             ### 支持的架构
             - linux/amd64
@@ -167,10 +176,13 @@ jobs:
             ### 使用方法
             ```bash
             # 拉取最新版本
-            docker pull ${{ env.IMAGE_NAME }}:${{ steps.extract_version.outputs.VERSION }}
+            docker pull ${{ env.IMAGE_NAME }}:latest
+            
+            # 拉取特定版本
+            docker pull ${{ env.IMAGE_NAME }}:${{ steps.parse_version.outputs.VERSION }}
             
             # 运行容器
-            docker run -p 80:8080 ${{ env.IMAGE_NAME }}:${{ steps.extract_version.outputs.VERSION }}
+            docker run -p 80:8080 ${{ env.IMAGE_NAME }}:${{ steps.parse_version.outputs.VERSION }}
             ```
             
             ### 变更日志
@@ -178,11 +190,11 @@ jobs:
           draft: false
           prerelease: false
 
-      - name: Skip Release creation (not a tag push)
-        if: github.event_name != 'push' || !contains(github.ref, 'refs/tags/')
+      - name: Skip Release creation (not main branch push)
+        if: github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref != 'refs/heads/main')
         run: |
           echo "⏭️  Skipping GitHub Release creation"
-          echo "Reason: This is not a tag push"
+          echo "Reason: This is not a main branch push"
           echo "To create a Release:"
-          echo "  1. Create and push a version tag: git tag v1.0.0 && git push origin v1.0.0"
-          echo "  2. Or use format: git tag 1.0.0 && git push origin 1.0.0"
+          echo "  1. Update the version file and push to main branch"
+          echo "  2. Or use manual workflow dispatch"
