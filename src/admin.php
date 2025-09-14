@@ -12,19 +12,22 @@ if ($is_authenticated && isset($_POST['action'])) {
     
     switch ($action) {
         case 'restart_php':
-            $result = shell_exec('supervisorctl restart php-fpm 2>&1');
+            $result = restartService('php-fpm84', 'PHP-FPM');
             break;
         case 'restart_nginx':
-            $result = shell_exec('supervisorctl restart nginx 2>&1');
+            $result = restartService('nginx', 'Nginx');
             break;
         case 'restart_redis':
-            $result = shell_exec('supervisorctl restart redis 2>&1');
+            $result = restartService('redis-server', 'Redis');
             break;
         case 'restart_all':
-            $result = shell_exec('supervisorctl restart all 2>&1');
+            $result = restartAllServices();
             break;
         case 'status':
             $result = shell_exec('supervisorctl status 2>&1');
+            if (!$result || strpos($result, 'error') !== false) {
+                $result = "Supervisord 状态:\n" . shell_exec('ps aux | grep -E "(php-fpm|nginx|redis)" | grep -v grep 2>&1');
+            }
             break;
         case 'clear_redis':
             try {
@@ -46,26 +49,132 @@ if ($is_authenticated && isset($_POST['action'])) {
 
 // 获取服务状态
 function getServiceStatus() {
-    $status = shell_exec('supervisorctl status 2>&1');
     $services = [];
     
-    if ($status) {
-        $lines = explode("\n", trim($status));
-        foreach ($lines as $line) {
-            if (trim($line)) {
-                $parts = preg_split('/\s+/', trim($line), 3);
-                if (count($parts) >= 3) {
-                    $services[] = [
-                        'name' => $parts[0],
-                        'status' => $parts[1],
-                        'description' => $parts[2] ?? ''
-                    ];
+    // 尝试不同的 supervisord 配置路径
+    $config_paths = [
+        '/etc/supervisor/conf.d/supervisord.conf',
+        '/etc/supervisord.conf',
+        '/usr/local/etc/supervisord.conf'
+    ];
+    
+    $status_cmd = 'supervisorctl status 2>&1';
+    $status = shell_exec($status_cmd);
+    
+    // 如果 supervisord 命令失败，尝试直接检查进程
+    if (!$status || strpos($status, 'error') !== false || strpos($status, 'not read config') !== false) {
+        // 直接检查进程状态
+        $services = checkProcessStatus();
+    } else {
+        // 解析 supervisord 状态
+        if ($status) {
+            $lines = explode("\n", trim($status));
+            foreach ($lines as $line) {
+                if (trim($line) && !strpos($line, 'error') && !strpos($line, 'not read config')) {
+                    $parts = preg_split('/\s+/', trim($line), 3);
+                    if (count($parts) >= 3) {
+                        $services[] = [
+                            'name' => $parts[0],
+                            'status' => $parts[1],
+                            'description' => $parts[2] ?? ''
+                        ];
+                    }
                 }
             }
         }
     }
     
     return $services;
+}
+
+// 直接检查进程状态
+function checkProcessStatus() {
+    $services = [];
+    
+    // 检查 PHP-FPM
+    $php_status = shell_exec('pgrep -f "php-fpm84" > /dev/null 2>&1 && echo "RUNNING" || echo "STOPPED"');
+    $services[] = [
+        'name' => 'php-fpm',
+        'status' => trim($php_status) === 'RUNNING' ? 'RUNNING' : 'STOPPED',
+        'description' => trim($php_status) === 'RUNNING' ? 'PHP-FPM 进程正在运行' : 'PHP-FPM 进程未运行'
+    ];
+    
+    // 检查 Nginx
+    $nginx_status = shell_exec('pgrep -f "nginx" > /dev/null 2>&1 && echo "RUNNING" || echo "STOPPED"');
+    $services[] = [
+        'name' => 'nginx',
+        'status' => trim($nginx_status) === 'RUNNING' ? 'RUNNING' : 'STOPPED',
+        'description' => trim($nginx_status) === 'RUNNING' ? 'Nginx 进程正在运行' : 'Nginx 进程未运行'
+    ];
+    
+    // 检查 Redis
+    $redis_status = shell_exec('pgrep -f "redis-server" > /dev/null 2>&1 && echo "RUNNING" || echo "STOPPED"');
+    $services[] = [
+        'name' => 'redis',
+        'status' => trim($redis_status) === 'RUNNING' ? 'RUNNING' : 'STOPPED',
+        'description' => trim($redis_status) === 'RUNNING' ? 'Redis 进程正在运行' : 'Redis 进程未运行'
+    ];
+    
+    return $services;
+}
+
+// 重启单个服务
+function restartService($process_name, $service_name) {
+    $result = '';
+    
+    // 首先尝试使用 supervisord
+    $supervisor_result = shell_exec("supervisorctl restart {$service_name} 2>&1");
+    
+    if (!$supervisor_result || strpos($supervisor_result, 'error') !== false || strpos($supervisor_result, 'not read config') !== false) {
+        // 如果 supervisord 失败，直接重启进程
+        $result .= "Supervisord 不可用，直接重启进程...\n";
+        
+        // 杀死现有进程
+        $kill_result = shell_exec("pkill -f '{$process_name}' 2>&1");
+        $result .= "停止进程: {$kill_result}\n";
+        
+        // 等待一秒
+        sleep(1);
+        
+        // 启动服务
+        if ($process_name === 'php-fpm84') {
+            $start_result = shell_exec("php-fpm84 -F > /dev/null 2>&1 &");
+        } elseif ($process_name === 'nginx') {
+            $start_result = shell_exec("nginx -g 'daemon off;' > /dev/null 2>&1 &");
+        } elseif ($process_name === 'redis-server') {
+            $start_result = shell_exec("redis-server /etc/redis.conf > /dev/null 2>&1 &");
+        }
+        
+        $result .= "启动 {$service_name} 服务\n";
+        
+        // 检查是否启动成功
+        sleep(2);
+        $check_result = shell_exec("pgrep -f '{$process_name}' > /dev/null 2>&1 && echo 'SUCCESS' || echo 'FAILED'");
+        $result .= "启动结果: " . trim($check_result) . "\n";
+    } else {
+        $result = $supervisor_result;
+    }
+    
+    return $result;
+}
+
+// 重启所有服务
+function restartAllServices() {
+    $result = '';
+    
+    $services = [
+        ['process' => 'php-fpm84', 'name' => 'PHP-FPM'],
+        ['process' => 'nginx', 'name' => 'Nginx'],
+        ['process' => 'redis-server', 'name' => 'Redis']
+    ];
+    
+    foreach ($services as $service) {
+        $result .= "=== 重启 {$service['name']} ===\n";
+        $result .= restartService($service['process'], $service['name']);
+        $result .= "\n";
+    }
+    
+    return $result;
 }
 
 // 获取系统信息
@@ -190,7 +299,33 @@ $systemInfo = getSystemInfo();
                         </h2>
                         
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                            <?php foreach ($services as $service): ?>
+                            <?php 
+                            // 确保显示所有三个服务
+                            $expected_services = ['php-fpm', 'nginx', 'redis'];
+                            $display_services = [];
+                            
+                            // 从实际状态中获取服务
+                            foreach ($expected_services as $expected) {
+                                $found = false;
+                                foreach ($services as $service) {
+                                    if ($service['name'] === $expected) {
+                                        $display_services[] = $service;
+                                        $found = true;
+                                        break;
+                                    }
+                                }
+                                if (!$found) {
+                                    // 如果没找到，添加默认状态
+                                    $display_services[] = [
+                                        'name' => $expected,
+                                        'status' => 'UNKNOWN',
+                                        'description' => '状态未知'
+                                    ];
+                                }
+                            }
+                            
+                            foreach ($display_services as $service): 
+                            ?>
                                 <div class="bg-gray-50 rounded-lg p-4">
                                     <div class="flex items-center justify-between mb-2">
                                         <h3 class="font-semibold text-gray-800">
@@ -203,15 +338,31 @@ $systemInfo = getSystemInfo();
                                             $icon = $icons[$service['name']] ?? 'fas fa-cog';
                                             ?>
                                             <i class="<?php echo $icon; ?> mr-2"></i>
-                                            <?php echo ucfirst($service['name']); ?>
+                                            <?php 
+                                            $display_names = [
+                                                'php-fpm' => 'PHP-FPM',
+                                                'nginx' => 'Nginx',
+                                                'redis' => 'Redis'
+                                            ];
+                                            echo $display_names[$service['name']] ?? ucfirst($service['name']); 
+                                            ?>
                                         </h3>
                                         <span class="px-2 py-1 rounded-full text-xs font-medium text-white
                                             <?php 
                                             if (strpos($service['status'], 'RUNNING') !== false) echo 'status-running';
                                             elseif (strpos($service['status'], 'STOPPED') !== false) echo 'status-stopped';
-                                            else echo 'status-starting';
+                                            elseif (strpos($service['status'], 'STARTING') !== false) echo 'status-starting';
+                                            else echo 'bg-gray-500';
                                             ?>">
-                                            <?php echo $service['status']; ?>
+                                            <?php 
+                                            $status_display = [
+                                                'RUNNING' => '运行中',
+                                                'STOPPED' => '已停止',
+                                                'STARTING' => '启动中',
+                                                'UNKNOWN' => '未知'
+                                            ];
+                                            echo $status_display[$service['status']] ?? $service['status']; 
+                                            ?>
                                         </span>
                                     </div>
                                     <p class="text-sm text-gray-600"><?php echo $service['description']; ?></p>
