@@ -13,8 +13,8 @@ on:
   pull_request:
     paths:
       - 'version'
-  # schedule:
-  #   - cron: "0 2 * * 6"
+  schedule:
+    - cron: "0 2 * * 6"
   workflow_dispatch:
     inputs:
       branch:
@@ -55,6 +55,10 @@ jobs:
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             echo "Manual build - Branch: ${{ github.event.inputs.branch || 'current' }}"
             echo "Push to Docker Hub: ${{ github.event.inputs.push_to_dockerhub }}"
+          fi
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            echo "🕐 Scheduled build - Weekly automatic build triggered"
+            echo "This build will push to Docker Hub with latest tag"
           fi
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             echo "⚠️  This is a Pull Request build - Docker push and Release creation will be skipped"
@@ -120,14 +124,14 @@ jobs:
           sarif_file: "trivy-results.sarif"
 
       - name: Login to Docker Hub
-        if: (github.ref == 'refs/heads/main' && github.event_name == 'push') || contains(github.ref, 'refs/tags/') || (github.event_name == 'workflow_dispatch' && github.event.inputs.push_to_dockerhub == 'true')
+        if: (github.ref == 'refs/heads/main' && github.event_name == 'push') || contains(github.ref, 'refs/tags/') || (github.event_name == 'workflow_dispatch' && github.event.inputs.push_to_dockerhub == 'true') || github.event_name == 'schedule'
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build multi-arch image and push latest tag
-        if: (github.ref == 'refs/heads/main' && github.event_name == 'push') || (github.event_name == 'workflow_dispatch' && github.event.inputs.push_to_dockerhub == 'true')
+        if: (github.ref == 'refs/heads/main' && github.event_name == 'push') || (github.event_name == 'workflow_dispatch' && github.event.inputs.push_to_dockerhub == 'true') || github.event_name == 'schedule'
         run: |-
           echo "开始构建多架构镜像 - $(date)"
           echo "构建镜像: ${{ steps.parse_version.outputs.NAME }}"
