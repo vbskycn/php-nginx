@@ -52,6 +52,9 @@ COPY configure.sh /usr/local/bin/configure.sh
 COPY configure-simple.sh /usr/local/bin/configure-simple.sh
 RUN chmod +x /usr/local/bin/configure.sh /usr/local/bin/configure-simple.sh
 
+# 确保配置文件目录对nobody用户可写
+RUN chown -R nobody:nobody /etc/php84/conf.d /etc/php84/php-fpm.d /etc/redis.conf /etc/nginx/nginx.conf
+
 # Copy supervisord configuration
 COPY config/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 # Create symlink for supervisorctl compatibility

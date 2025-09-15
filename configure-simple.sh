@@ -38,6 +38,13 @@ ls -la /etc/php84/php-fpm.d/www.conf.template
 ls -la /etc/redis.conf.template
 ls -la /etc/nginx/nginx.conf.template
 
+# 检查目标文件权限
+echo "检查目标文件权限..."
+ls -la /etc/php84/conf.d/
+ls -la /etc/php84/php-fpm.d/
+ls -la /etc/redis.conf
+ls -la /etc/nginx/nginx.conf
+
 # 生成配置文件
 echo "生成配置文件..."
 envsubst < /etc/php84/conf.d/custom.ini.template > /etc/php84/conf.d/custom.ini
