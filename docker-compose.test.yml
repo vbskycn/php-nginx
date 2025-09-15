@@ -8,6 +8,12 @@ services:
       timeout: 5s
       retries: 5
       start_period: 30s
+    # 添加日志输出以便调试
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
   sut:
     image: alpine:3.21
     depends_on:
