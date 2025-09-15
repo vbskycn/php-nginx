@@ -10,10 +10,12 @@
 * 多平台支持，支持 AMD64, ARMv6, ARMv7, ARM64
 * 极小的 Docker 镜像大小（约40MB）
 * 使用 PHP 8.4 以获得最佳性能、低CPU使用率和内存占用
-* 针对50个并发用户优化，限制并发处理PHP文件的请求数
-* 优化为仅在流量时使用资源（通过使用PHP-FPM的`on-demand`进程管理器）
-* Nginx、PHP-FPM和supervisord服务在非特权用户（nobody）下运行，更加安全
+* **环境变量配置系统** - 支持通过环境变量灵活配置，适应不同设备规格
+* 针对512M VPS优化，支持50个并发用户，可扩展到更大规格服务器
+* 优化为仅在流量时使用资源（通过使用PHP-FPM的`ondemand`进程管理器）
+* Nginx、PHP-FPM、Redis和supervisord服务在非特权用户（nobody）下运行，更加安全
 * 所有服务的日志都重定向到Docker容器的输出（可通过`docker logs -f <容器名称>`查看）
+* 自动服务管理和故障恢复，任何服务崩溃都会自动重启
 * 遵循KISS原则（Keep It Simple, Stupid），易于理解和调整镜像以满足您的需求
 
 [![Docker Pulls](https://img.shields.io/docker/pulls/zhoujie218/php-nginx.svg)](https://hub.docker.com/r/zhoujie218/php-nginx/)
@@ -25,10 +27,17 @@
 
 这个容器镜像的目标是提供一个在容器中运行Nginx和PHP-FPM的示例，专门针对512M VPS进行优化，遵循最佳实践，易于理解和修改以满足您的需求。特别适合资源受限的小型服务器环境。如你需要可以自行调整并重新编译
 
-## 512M VPS 优化特性
+## 环境变量配置系统
 
+### 核心优势
+* **灵活配置**：支持通过环境变量自定义所有关键参数
+* **多设备适配**：从512M VPS到4G+服务器的完整配置方案
+* **向后兼容**：不设置环境变量时使用512M VPS默认优化配置
+* **实时生效**：配置在容器启动时动态生成，无需重新构建镜像
+
+### 512M VPS 默认配置
 * **内存优化**：PHP内存限制64MB，OPcache内存32MB，Redis内存限制64MB
-* **进程管理**：PHP-FPM使用`on-demand`模式，按需创建进程，空闲时自动回收
+* **进程管理**：PHP-FPM使用`ondemand`模式，按需创建进程，空闲时自动回收
 * **并发控制**：最大50个PHP-FPM进程，支持50个并发用户
 * **缓存策略**：启用OPcache加速，Redis LRU淘汰策略，静态资源5天缓存
 * **轻量级基础**：基于Alpine Linux，镜像大小仅约40MB
@@ -154,13 +163,24 @@ services:
 
 **直接使用Docker命令：**
 ```bash
-docker run -p 80:8080 \
-  -e PHP_MEMORY_LIMIT=128M \
-  -e OPCACHE_MEMORY_CONSUMPTION=64 \
-  -e PHP_FPM_MAX_CHILDREN=80 \
-  -e REDIS_MAXMEMORY=128mb \
-  -v ~/my-codebase:/var/www/html \
-  zhoujie218/php-nginx
+docker stop php-nginx
+docker rm php-nginx
+
+docker run -d \
+  --name php-nginx \
+  --restart=always \
+  -p 80:8080 \
+  -e PHP_MEMORY_LIMIT=64M \
+  -e OPCACHE_MEMORY=128 \
+  -e REDIS_MAXMEMORY=64mb \
+  -e FPM_PM_MODE=static \
+  -e FPM_MAX_CHILDREN=20 \
+  -e NGINX_WORKER_PROCESSES=1 \
+  -e NGINX_WORKER_CONNECTIONS=2048 \
+  -e PHP_DISPLAY_ERRORS=On \
+  -e PHP_MAX_EXECUTION_TIME=300 \
+  -e OPCACHE_ENABLE=0 \
+  zhoujie218/php-nginx:1.1.46
 ```
 
 ## 版本管理
@@ -221,6 +241,7 @@ GET /admin.php
 * [🚀 部署指南](docs/部署指南.md) - 工作流触发、版本管理、镜像使用
 * [📖 项目指南](docs/项目指南.md) - 贡献指南、开发指南、代码规范
 * [💡 使用示例](docs/使用示例.md) - 实际应用场景、最佳实践、故障恢复
+* [⚙️ 环境变量配置指南](docs/环境变量配置指南.md) - 详细的环境变量配置说明和最佳实践
 
 
 
