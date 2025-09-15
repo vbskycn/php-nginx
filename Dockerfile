@@ -39,12 +39,16 @@ ENV PHP_INI_DIR=/etc/php84
 COPY config/nginx.conf /etc/nginx/nginx.conf
 COPY config/conf.d /etc/nginx/conf.d/
 
-# Copy PHP-FPM configuration
-COPY config/fpm-pool.conf ${PHP_INI_DIR}/php-fpm.d/www.conf
-COPY config/php.ini ${PHP_INI_DIR}/conf.d/custom.ini
+# Copy PHP-FPM configuration templates
+COPY config/fpm-pool.conf.template ${PHP_INI_DIR}/php-fpm.d/www.conf.template
+COPY config/php.ini.template ${PHP_INI_DIR}/conf.d/custom.ini.template
 
-# Copy Redis configuration
-COPY config/redis.conf /etc/redis.conf
+# Copy Redis configuration template
+COPY config/redis.conf.template /etc/redis.conf.template
+
+# Copy startup script
+COPY config/startup.sh /usr/local/bin/startup.sh
+RUN chmod +x /usr/local/bin/startup.sh
 
 # Copy supervisord configuration
 COPY config/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
@@ -65,8 +69,8 @@ COPY --chown=nobody src/ /var/www/html/
 # Expose the port nginx is reachable on
 EXPOSE 8080
 
-# Let supervisord start nginx & php-fpm
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
+# Use startup script to generate configs and start services
+CMD ["/usr/local/bin/startup.sh"]
 
 # Configure a healthcheck to validate that everything is up&running
 HEALTHCHECK --timeout=10s CMD curl --silent --fail http://127.0.0.1:8080/fpm-ping || exit 1
