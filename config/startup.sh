@@ -3,7 +3,7 @@
 # 配置生成脚本 - 根据环境变量生成配置文件
 # 支持多种VPS配置预设
 
-set -e
+# set -e  # 暂时禁用，避免调试命令导致脚本退出
 
 # 默认配置（1H512M）
 DEFAULT_CONFIG="1H512M"
@@ -22,6 +22,11 @@ echo "  模板文件检查:"
 echo "    PHP模板: $(ls -la /etc/php84/conf.d/custom.ini.template 2>/dev/null || echo '不存在')"
 echo "    Redis模板: $(ls -la /etc/redis.conf.template 2>/dev/null || echo '不存在')"
 echo "    PHP-FPM模板: $(ls -la /etc/php84/php-fpm.d/www.conf.template 2>/dev/null || echo '不存在')"
+
+# 检查关键命令
+echo "  关键命令检查:"
+echo "    envsubst: $(which envsubst 2>/dev/null || echo '未找到')"
+echo "    supervisord: $(which supervisord 2>/dev/null || echo '未找到')"
 
 # 配置预设
 case "$VPS_CONFIG" in
@@ -175,6 +180,9 @@ else
 fi
 
 echo "🎉 配置生成完成！"
+
+# 重新启用错误检查
+set -e
 
 # 启动supervisord
 echo "🚀 启动服务..."

@@ -72,8 +72,7 @@ COPY --chown=nobody src/ /var/www/html/
 EXPOSE 8080
 
 # Use startup script to generate configs and start services
-# 临时使用简化版启动脚本进行调试
-CMD ["/usr/local/bin/startup-simple.sh"]
+CMD ["/usr/local/bin/startup.sh"]
 
 # Configure a healthcheck to validate that everything is up&running
 HEALTHCHECK --timeout=10s CMD curl --silent --fail http://127.0.0.1:8080/fpm-ping || exit 1
