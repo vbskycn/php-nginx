@@ -79,11 +79,89 @@ docker-compose up -d
 
 ### 环境变量配置
 
+支持通过环境变量自定义配置，适应不同设备规格。如果不设置环境变量，将使用512M VPS的默认优化配置。
+
+#### PHP配置
 | 变量名 | 默认值 | 说明 |
 |--------|--------|------|
 | `PHP_MEMORY_LIMIT` | 64M | PHP内存限制 |
+| `OPCACHE_MEMORY_CONSUMPTION` | 32 | OPcache内存大小(MB) |
+| `OPCACHE_INTERNED_STRINGS_BUFFER` | 4 | 内部字符串缓冲区(MB) |
+| `OPCACHE_MAX_ACCELERATED_FILES` | 2000 | 最大加速文件数 |
+| `OPCACHE_REVALIDATE_FREQ` | 60 | 重新验证频率(秒) |
+
+#### PHP-FPM配置
+| 变量名 | 默认值 | 说明 |
+|--------|--------|------|
+| `PHP_FPM_MAX_CHILDREN` | 50 | 最大子进程数 |
+| `PHP_FPM_START_SERVERS` | 2 | 启动服务器数 |
+| `PHP_FPM_MIN_SPARE_SERVERS` | 1 | 最小空闲服务器数 |
+| `PHP_FPM_MAX_SPARE_SERVERS` | 10 | 最大空闲服务器数 |
+| `PHP_FPM_PROCESS_IDLE_TIMEOUT` | 10s | 进程空闲超时时间 |
+| `PHP_FPM_MAX_REQUESTS` | 1000 | 每个进程最大请求数 |
+
+#### Redis配置
+| 变量名 | 默认值 | 说明 |
+|--------|--------|------|
 | `REDIS_MAXMEMORY` | 64mb | Redis最大内存 |
+| `REDIS_MAXMEMORY_POLICY` | allkeys-lru | 内存淘汰策略 |
+
+#### Nginx配置
+| 变量名 | 默认值 | 说明 |
+|--------|--------|------|
 | `NGINX_WORKER_PROCESSES` | auto | Nginx工作进程数 |
+| `NGINX_WORKER_CONNECTIONS` | 1024 | 每个工作进程的连接数 |
+
+#### 使用示例
+
+**1G内存服务器配置示例：**
+```yaml
+version: '3.8'
+services:
+  php-nginx:
+    image: zhoujie218/php-nginx:latest
+    ports:
+      - "80:8080"
+    volumes:
+      - ./src:/var/www/html
+    environment:
+      - PHP_MEMORY_LIMIT=128M
+      - OPCACHE_MEMORY_CONSUMPTION=64
+      - PHP_FPM_MAX_CHILDREN=80
+      - REDIS_MAXMEMORY=128mb
+      - NGINX_WORKER_PROCESSES=2
+    restart: unless-stopped
+```
+
+**2G内存服务器配置示例：**
+```yaml
+version: '3.8'
+services:
+  php-nginx:
+    image: zhoujie218/php-nginx:latest
+    ports:
+      - "80:8080"
+    volumes:
+      - ./src:/var/www/html
+    environment:
+      - PHP_MEMORY_LIMIT=256M
+      - OPCACHE_MEMORY_CONSUMPTION=128
+      - PHP_FPM_MAX_CHILDREN=120
+      - REDIS_MAXMEMORY=256mb
+      - NGINX_WORKER_PROCESSES=4
+    restart: unless-stopped
+```
+
+**直接使用Docker命令：**
+```bash
+docker run -p 80:8080 \
+  -e PHP_MEMORY_LIMIT=128M \
+  -e OPCACHE_MEMORY_CONSUMPTION=64 \
+  -e PHP_FPM_MAX_CHILDREN=80 \
+  -e REDIS_MAXMEMORY=128mb \
+  -v ~/my-codebase:/var/www/html \
+  zhoujie218/php-nginx
+```
 
 ## 版本管理
 

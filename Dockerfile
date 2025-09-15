@@ -35,16 +35,20 @@ RUN apk add --no-cache \
 # Configure all services for better caching
 ENV PHP_INI_DIR=/etc/php84
 
-# Copy nginx configuration
-COPY config/nginx.conf /etc/nginx/nginx.conf
+# Copy nginx configuration templates
+COPY config/nginx.conf.template /etc/nginx/nginx.conf.template
 COPY config/conf.d /etc/nginx/conf.d/
 
-# Copy PHP-FPM configuration
-COPY config/fpm-pool.conf ${PHP_INI_DIR}/php-fpm.d/www.conf
-COPY config/php.ini ${PHP_INI_DIR}/conf.d/custom.ini
+# Copy PHP-FPM configuration templates
+COPY config/fpm-pool.conf.template ${PHP_INI_DIR}/php-fpm.d/www.conf.template
+COPY config/php.ini.template ${PHP_INI_DIR}/conf.d/custom.ini.template
 
-# Copy Redis configuration
-COPY config/redis.conf /etc/redis.conf
+# Copy Redis configuration template
+COPY config/redis.conf.template /etc/redis.conf.template
+
+# Copy configuration script
+COPY configure.sh /usr/local/bin/configure.sh
+RUN chmod +x /usr/local/bin/configure.sh
 
 # Copy supervisord configuration
 COPY config/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
