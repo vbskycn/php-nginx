@@ -8,7 +8,6 @@ WORKDIR /var/www/html
 # Install packages and create symlink in one layer for better caching
 RUN apk add --no-cache \
   curl \
-  gettext \
   nginx \
   php84 \
   php84-ctype \
@@ -40,18 +39,12 @@ ENV PHP_INI_DIR=/etc/php84
 COPY config/nginx.conf /etc/nginx/nginx.conf
 COPY config/conf.d /etc/nginx/conf.d/
 
-# Copy PHP-FPM configuration templates
-COPY config/fpm-pool.conf.template ${PHP_INI_DIR}/php-fpm.d/www.conf.template
-COPY config/php.ini.template ${PHP_INI_DIR}/conf.d/custom.ini.template
+# Copy PHP-FPM configuration
+COPY config/fpm-pool.conf ${PHP_INI_DIR}/php-fpm.d/www.conf
+COPY config/php.ini ${PHP_INI_DIR}/conf.d/custom.ini
 
-# Copy Redis configuration template
-COPY config/redis.conf.template /etc/redis.conf.template
-
-# Copy startup script
-COPY config/startup.sh /usr/local/bin/startup.sh
-COPY config/startup-simple.sh /usr/local/bin/startup-simple.sh
-COPY config/startup-minimal.sh /usr/local/bin/startup-minimal.sh
-RUN chmod +x /usr/local/bin/startup.sh /usr/local/bin/startup-simple.sh /usr/local/bin/startup-minimal.sh
+# Copy Redis configuration
+COPY config/redis.conf /etc/redis.conf
 
 # Copy supervisord configuration
 COPY config/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
@@ -72,9 +65,8 @@ COPY --chown=nobody src/ /var/www/html/
 # Expose the port nginx is reachable on
 EXPOSE 8080
 
-# Use startup script to generate configs and start services
-# 临时使用最小化启动脚本进行测试
-CMD ["/usr/local/bin/startup-minimal.sh"]
+# Let supervisord start nginx & php-fpm
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
 
 # Configure a healthcheck to validate that everything is up&running
-HEALTHCHECK --timeout=15s CMD curl --silent --fail http://127.0.0.1:8080/ || exit 1
+HEALTHCHECK --timeout=10s CMD curl --silent --fail http://127.0.0.1:8080/fpm-ping || exit 1

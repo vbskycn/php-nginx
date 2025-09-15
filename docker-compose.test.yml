@@ -2,23 +2,8 @@ services:
   app:
     image: ${IMAGE_NAME}:${IMAGE_TAG}
     build: .
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/"]
-      interval: 20s
-      timeout: 15s
-      retries: 15
-      start_period: 120s
-    # 添加日志输出以便调试
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
   sut:
     image: alpine:3.21
     depends_on:
-      app:
-        condition: service_healthy
-    volumes:
-      - ./run_tests.sh:/run_tests.sh:ro
-    command: sh /run_tests.sh
+      - app
+    command: sh -c "apk --no-cache add curl && curl --silent --fail http://app:8080 | grep 'PHP 8.4'"
