@@ -2,8 +2,17 @@ services:
   app:
     image: ${IMAGE_NAME}:${IMAGE_TAG}
     build: .
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/fpm-ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
   sut:
     image: alpine:3.21
     depends_on:
-      - app
-    command: sh -c "apk --no-cache add curl && curl --silent --fail http://app:8080 | grep 'PHP 8.4'"
+      app:
+        condition: service_healthy
+    volumes:
+      - ./run_tests.sh:/run_tests.sh:ro
+    command: sh /run_tests.sh
