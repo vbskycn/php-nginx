@@ -2,7 +2,7 @@
 
 基于 [Alpine Linux](https://www.alpinelinux.org/) 构建的 Docker PHP-FPM 8.4 & Nginx 1.26 容器镜像示例。
 
-仓库地址: https://github.com/zhoujie218/php-nginx
+仓库地址: https://github.com/vbskycn/php-nginx
 
 ## 特性
 
@@ -11,7 +11,7 @@
 * 极小的 Docker 镜像大小（约40MB）
 * 使用 PHP 8.4 以获得最佳性能、低CPU使用率和内存占用
 * **环境变量配置系统** - 支持通过环境变量灵活配置，适应不同设备规格
-* 针对512M VPS优化，支持50个并发用户，可扩展到更大规格服务器
+* 针对512M VPS优化，支持20个并发用户，可扩展到更大规格服务器
 * 优化为仅在流量时使用资源（通过使用PHP-FPM的`ondemand`进程管理器）
 * Nginx、PHP-FPM、Redis和supervisord服务在非特权用户（nobody）下运行，更加安全
 * 所有服务的日志都重定向到Docker容器的输出（可通过`docker logs -f <容器名称>`查看）
@@ -38,7 +38,7 @@
 ### 512M VPS 默认配置
 * **内存优化**：PHP内存限制64MB，OPcache内存32MB，Redis内存限制64MB
 * **进程管理**：PHP-FPM使用`ondemand`模式，按需创建进程，空闲时自动回收
-* **并发控制**：最大50个PHP-FPM进程，支持50个并发用户
+* **并发控制**：最大20个PHP-FPM进程，支持20个并发用户
 * **缓存策略**：启用OPcache加速，Redis LRU淘汰策略，静态资源5天缓存
 * **轻量级基础**：基于Alpine Linux，镜像大小仅约40MB
 * **资源监控**：所有服务日志统一输出，便于监控和调试
@@ -169,7 +169,7 @@ docker run -d \
 
 ## 版本管理
 
-主要或次要更改总是作为[发布版本](https://github.com/zhoujie218/php-nginx/releases)发布，并附有相应的变更日志。
+主要或次要更改总是作为[发布版本](https://github.com/vbskycn/php-nginx/releases)发布，并附有相应的变更日志。
 当前版本：`1.1.47`
 `latest`标签每周自动更新，包含Alpine Linux的最新补丁。
 
