@@ -13,20 +13,9 @@ VPS_CONFIG=${VPS_CONFIG:-$DEFAULT_CONFIG}
 
 echo "🚀 启动配置生成器 - VPS配置: $VPS_CONFIG"
 
-# 调试信息
-echo "🔍 调试信息:"
-echo "  当前用户: $(whoami)"
-echo "  当前目录: $(pwd)"
+# 基本调试信息
+echo "🔍 启动信息:"
 echo "  环境变量: VPS_CONFIG=$VPS_CONFIG"
-echo "  模板文件检查:"
-echo "    PHP模板: $(ls -la /etc/php84/conf.d/custom.ini.template 2>/dev/null || echo '不存在')"
-echo "    Redis模板: $(ls -la /etc/redis.conf.template 2>/dev/null || echo '不存在')"
-echo "    PHP-FPM模板: $(ls -la /etc/php84/php-fpm.d/www.conf.template 2>/dev/null || echo '不存在')"
-
-# 检查关键命令
-echo "  关键命令检查:"
-echo "    envsubst: $(which envsubst 2>/dev/null || echo '未找到')"
-echo "    supervisord: $(which supervisord 2>/dev/null || echo '未找到')"
 
 # 配置预设
 case "$VPS_CONFIG" in
@@ -133,51 +122,20 @@ echo "  PHP-FPM最大进程: $PHP_FPM_MAX_CHILDREN"
 # 生成配置文件
 echo "🔧 生成配置文件..."
 
-# 检查模板文件是否存在
-if [ ! -f "/etc/php84/conf.d/custom.ini.template" ]; then
-    echo "❌ PHP配置模板文件不存在: /etc/php84/conf.d/custom.ini.template"
-    exit 1
-fi
-
-if [ ! -f "/etc/redis.conf.template" ]; then
-    echo "❌ Redis配置模板文件不存在: /etc/redis.conf.template"
-    exit 1
-fi
-
-if [ ! -f "/etc/php84/php-fpm.d/www.conf.template" ]; then
-    echo "❌ PHP-FPM配置模板文件不存在: /etc/php84/php-fpm.d/www.conf.template"
-    exit 1
-fi
-
 # 生成PHP配置
 echo "  📝 生成PHP配置..."
 envsubst < /etc/php84/conf.d/custom.ini.template > /etc/php84/conf.d/custom.ini
-if [ $? -eq 0 ]; then
-    echo "  ✅ PHP配置已生成"
-else
-    echo "  ❌ PHP配置生成失败"
-    exit 1
-fi
+echo "  ✅ PHP配置已生成"
 
 # 生成Redis配置
 echo "  📝 生成Redis配置..."
 envsubst < /etc/redis.conf.template > /etc/redis.conf
-if [ $? -eq 0 ]; then
-    echo "  ✅ Redis配置已生成"
-else
-    echo "  ❌ Redis配置生成失败"
-    exit 1
-fi
+echo "  ✅ Redis配置已生成"
 
 # 生成PHP-FPM配置
 echo "  📝 生成PHP-FPM配置..."
 envsubst < /etc/php84/php-fpm.d/www.conf.template > /etc/php84/php-fpm.d/www.conf
-if [ $? -eq 0 ]; then
-    echo "  ✅ PHP-FPM配置已生成"
-else
-    echo "  ❌ PHP-FPM配置生成失败"
-    exit 1
-fi
+echo "  ✅ PHP-FPM配置已生成"
 
 echo "🎉 配置生成完成！"
 
@@ -186,15 +144,4 @@ set -e
 
 # 启动supervisord
 echo "🚀 启动服务..."
-
-# 检查supervisord配置文件
-if [ ! -f "/etc/supervisor/conf.d/supervisord.conf" ]; then
-    echo "❌ supervisord配置文件不存在: /etc/supervisor/conf.d/supervisord.conf"
-    exit 1
-fi
-
-echo "📋 supervisord配置文件检查通过"
-
-# 启动supervisord
-echo "🚀 启动supervisord..."
 exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf

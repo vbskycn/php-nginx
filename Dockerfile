@@ -50,7 +50,8 @@ COPY config/redis.conf.template /etc/redis.conf.template
 # Copy startup script
 COPY config/startup.sh /usr/local/bin/startup.sh
 COPY config/startup-simple.sh /usr/local/bin/startup-simple.sh
-RUN chmod +x /usr/local/bin/startup.sh /usr/local/bin/startup-simple.sh
+COPY config/startup-minimal.sh /usr/local/bin/startup-minimal.sh
+RUN chmod +x /usr/local/bin/startup.sh /usr/local/bin/startup-simple.sh /usr/local/bin/startup-minimal.sh
 
 # Copy supervisord configuration
 COPY config/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
@@ -72,7 +73,8 @@ COPY --chown=nobody src/ /var/www/html/
 EXPOSE 8080
 
 # Use startup script to generate configs and start services
-CMD ["/usr/local/bin/startup.sh"]
+# 临时使用最小化启动脚本进行测试
+CMD ["/usr/local/bin/startup-minimal.sh"]
 
 # Configure a healthcheck to validate that everything is up&running
 HEALTHCHECK --timeout=10s CMD curl --silent --fail http://127.0.0.1:8080/fpm-ping || exit 1
