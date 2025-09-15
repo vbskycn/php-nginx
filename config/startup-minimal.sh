@@ -46,7 +46,7 @@ ls -la /run/php-fpm.sock || echo "PHP-FPM socket不存在"
 
 # 测试健康检查端点
 echo "📊 测试健康检查端点..."
-curl -f http://localhost:8080/fpm-ping && echo "健康检查通过" || echo "健康检查失败"
+curl -f http://localhost:8080/ && echo "健康检查通过" || echo "健康检查失败"
 
 # 启动supervisord
 exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf
