@@ -175,22 +175,121 @@ docker run -d \
 
 ## 配置
 
-在[config/](config/)目录中，您可以找到Nginx、PHP和PHP-FPM的默认配置文件。
-如果您想扩展或自定义配置，可以通过在正确的文件夹中挂载配置文件来实现：
+本项目支持两种配置方式：**环境变量配置**（推荐）和**配置文件挂载**。
 
-Nginx配置：
+### 方式一：环境变量配置（推荐）
 
-    docker run -v "`pwd`/nginx-server.conf:/etc/nginx/conf.d/server.conf" zhoujie218/php-nginx:latest
+通过环境变量可以灵活配置所有关键参数，无需修改配置文件：
 
-PHP配置：
+```bash
+# 基本配置示例
+docker run -d \
+  --name php-nginx \
+  -p 80:8080 \
+  -e PHP_MEMORY_LIMIT=128M \
+  -e PHP_FPM_MAX_CHILDREN=40 \
+  -e OPCACHE_MEMORY_CONSUMPTION=64 \
+  -e REDIS_MAXMEMORY=128mb \
+  zhoujie218/php-nginx:latest
+```
 
-    docker run -v "`pwd`/php-setting.ini:/etc/php84/conf.d/settings.ini" zhoujie218/php-nginx:latest
+**优势**：
+- ✅ 无需创建配置文件
+- ✅ 配置在容器启动时动态生成
+- ✅ 支持不同环境使用不同配置
+- ✅ 配置参数完整，覆盖所有服务
 
-PHP-FPM配置：
+> 详细的环境变量配置说明请参考 [环境变量配置指南](docs/环境变量配置指南.md)
 
-    docker run -v "`pwd`/php-fpm-settings.conf:/etc/php84/php-fpm.d/server.conf" zhoujie218/php-nginx:latest
+### 方式二：配置文件挂载
 
-_注意：因为`-v`需要绝对路径，我在示例中添加了`pwd`来返回当前目录的绝对路径_
+如果需要自定义配置文件，可以通过挂载方式覆盖默认配置：
+
+#### Nginx配置示例
+
+创建 `nginx-custom.conf`：
+```nginx
+server {
+    listen 8080;
+    server_name localhost;
+    root /var/www/html;
+    index index.php index.html;
+
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+
+    location ~ \.php$ {
+        fastcgi_pass unix:/run/php-fpm.sock;
+        fastcgi_index index.php;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        include fastcgi_params;
+    }
+}
+```
+
+挂载配置：
+```bash
+# Linux/macOS
+docker run -v "$(pwd)/nginx-custom.conf:/etc/nginx/conf.d/default.conf" zhoujie218/php-nginx:latest
+
+# Windows PowerShell
+docker run -v "${PWD}/nginx-custom.conf:/etc/nginx/conf.d/default.conf" zhoujie218/php-nginx:latest
+```
+
+#### PHP配置示例
+
+创建 `php-custom.ini`：
+```ini
+; 自定义PHP配置
+memory_limit = 256M
+max_execution_time = 60
+upload_max_filesize = 10M
+post_max_size = 10M
+```
+
+挂载配置：
+```bash
+# Linux/macOS
+docker run -v "$(pwd)/php-custom.ini:/etc/php84/conf.d/99-custom.ini" zhoujie218/php-nginx:latest
+
+# Windows PowerShell
+docker run -v "${PWD}/php-custom.ini:/etc/php84/conf.d/99-custom.ini" zhoujie218/php-nginx:latest
+```
+
+#### PHP-FPM配置示例
+
+创建 `php-fpm-custom.conf`：
+```ini
+[www]
+pm = dynamic
+pm.max_children = 100
+pm.start_servers = 10
+pm.min_spare_servers = 5
+pm.max_spare_servers = 20
+```
+
+挂载配置：
+```bash
+# Linux/macOS
+docker run -v "$(pwd)/php-fpm-custom.conf:/etc/php84/php-fpm.d/www.conf" zhoujie218/php-nginx:latest
+
+# Windows PowerShell
+docker run -v "${PWD}/php-fpm-custom.conf:/etc/php84/php-fpm.d/www.conf" zhoujie218/php-nginx:latest
+```
+
+### 配置优先级
+
+1. **环境变量配置** > **挂载配置文件** > **默认配置**
+2. 环境变量配置会在容器启动时覆盖默认配置
+3. 挂载的配置文件会覆盖默认配置文件
+
+### 注意事项
+
+- 配置文件挂载需要绝对路径
+- 建议优先使用环境变量配置，更灵活且易于管理
+- 配置文件修改后需要重启容器才能生效
+- 环境变量配置在容器启动时自动生成，无需重启
 
 
 
