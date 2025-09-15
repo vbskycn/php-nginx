@@ -17,6 +17,8 @@ pm = ${FPM_PM_MODE:-ondemand}
 pm.max_children = ${FPM_MAX_CHILDREN:-20}
 
 ; Process management for different environments
+; Note: pm.start_servers, pm.min_spare_servers, pm.max_spare_servers are only used in 'dynamic' mode
+; In 'static' mode, all processes are started at once
 pm.start_servers = ${FPM_START_SERVERS:-2}
 pm.min_spare_servers = ${FPM_MIN_SPARE_SERVERS:-1}
 pm.max_spare_servers = ${FPM_MAX_SPARE_SERVERS:-10}

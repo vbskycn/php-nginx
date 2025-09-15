@@ -39,7 +39,9 @@ main() {
     # Generate dynamic configuration
     if [ -x "/etc/nginx-config-scripts/generate-config.sh" ]; then
         log "Generating dynamic configuration..."
-        /etc/nginx-config-scripts/generate-config.sh
+        /etc/nginx-config-scripts/generate-config.sh || {
+            log "WARNING: Configuration generation failed, using default configuration"
+        }
     else
         log "WARNING: Configuration generation script not found, using default configuration"
     fi

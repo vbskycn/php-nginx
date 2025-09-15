@@ -28,9 +28,24 @@ substitute_template() {
         return 1
     fi
     
+    log "Processing template: $template_file -> $output_file"
+    
+    # Debug: show environment variables before substitution
+    log "DEBUG: REDIS_MAXMEMORY=$REDIS_MAXMEMORY"
+    log "DEBUG: PHP_MEMORY_LIMIT=$PHP_MEMORY_LIMIT"
+    
     # Use envsubst to replace environment variables
     envsubst < "$template_file" > "$output_file"
+    
+    # Debug: show generated content
     log "Generated configuration: $output_file"
+    if [ -f "$output_file" ]; then
+        log "File size: $(wc -c < "$output_file") bytes"
+        log "First few lines:"
+        head -5 "$output_file" | while read line; do
+            log "  $line"
+        done
+    fi
 }
 
 # Function to load preset configuration
@@ -43,8 +58,16 @@ load_preset() {
         
         # Set environment variables from preset
         if [ -f "$preset_dir/env" ]; then
+            # Export all variables from the env file
+            set -a
             . "$preset_dir/env"
+            set +a
             log "Loaded environment variables from preset"
+            
+            # Debug: show some key variables
+            log "DEBUG: RESOURCE_PROFILE=$RESOURCE_PROFILE"
+            log "DEBUG: REDIS_MAXMEMORY=$REDIS_MAXMEMORY"
+            log "DEBUG: PHP_MEMORY_LIMIT=$PHP_MEMORY_LIMIT"
         fi
         
         # Copy preset files if they exist
