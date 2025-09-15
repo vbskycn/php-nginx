@@ -18,8 +18,8 @@ listen = /run/php-fpm.sock
 ; Enable status page
 pm.status_path = /fpm-status
 
-; Ondemand process manager
-pm = ondemand
+; Process manager - configurable via PHP_FPM_PM_MODE environment variable
+pm = ${PHP_FPM_PM_MODE}
 
 ; The number of child processes to be created when pm is set to 'static' and the
 ; maximum number of child processes when pm is set to 'dynamic' or 'ondemand'.

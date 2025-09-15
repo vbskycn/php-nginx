@@ -161,7 +161,7 @@ services:
     restart: unless-stopped
 ```
 
-**直接使用Docker命令：**
+**小内存机器配置示例：**
 ```bash
 docker stop php-nginx
 docker rm php-nginx
@@ -171,16 +171,16 @@ docker run -d \
   --restart=always \
   -p 80:8080 \
   -e PHP_MEMORY_LIMIT=64M \
-  -e OPCACHE_MEMORY=128 \
+  -e PHP_DISPLAY_ERRORS=Off \
+  -e PHP_MAX_EXECUTION_TIME=30 \
+  -e OPCACHE_ENABLE=1 \
+  -e OPCACHE_MEMORY_CONSUMPTION=32 \
+  -e PHP_FPM_PM_MODE=ondemand \
+  -e PHP_FPM_MAX_CHILDREN=20 \
   -e REDIS_MAXMEMORY=64mb \
-  -e FPM_PM_MODE=static \
-  -e FPM_MAX_CHILDREN=20 \
   -e NGINX_WORKER_PROCESSES=1 \
-  -e NGINX_WORKER_CONNECTIONS=2048 \
-  -e PHP_DISPLAY_ERRORS=On \
-  -e PHP_MAX_EXECUTION_TIME=300 \
-  -e OPCACHE_ENABLE=0 \
-  zhoujie218/php-nginx:1.1.46
+  -e NGINX_WORKER_CONNECTIONS=1024 \
+  zhoujie218/php-nginx:latest
 ```
 
 ## 版本管理
