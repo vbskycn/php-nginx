@@ -638,7 +638,6 @@ $systemInfo = getSystemInfo();
                         </button>
                     </form>
                     <div class="mt-4 text-center text-sm text-gray-500">
-                        <p>默认密钥: admin123</p>
                         <p class="mt-2">生产环境请修改默认密钥</p>
                     </div>
                 </div>
