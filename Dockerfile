@@ -8,6 +8,7 @@ WORKDIR /var/www/html
 # Install packages and create symlink in one layer for better caching
 RUN apk add --no-cache \
   curl \
+  gettext \
   nginx \
   php84 \
   php84-ctype \
