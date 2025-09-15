@@ -1,0 +1,64 @@
+# 2H2G VPS Configuration
+# Optimized for 2 CPU cores, 2GB RAM
+
+# PHP Configuration
+export PHP_MEMORY_LIMIT="256M"
+export PHP_TIMEZONE="UTC"
+export PHP_MAX_EXECUTION_TIME="120"
+export PHP_MAX_INPUT_TIME="300"
+export PHP_POST_MAX_SIZE="32M"
+export PHP_UPLOAD_MAX_FILESIZE="16M"
+export PHP_MAX_FILE_UPLOADS="50"
+export PHP_DISPLAY_ERRORS="Off"
+export PHP_LOG_ERRORS="On"
+export PHP_ERROR_LOG="/dev/stderr"
+
+# OPcache Configuration
+export OPCACHE_ENABLE="1"
+export OPCACHE_MEMORY="128"
+export OPCACHE_INTERNED_STRINGS_BUFFER="16"
+export OPCACHE_MAX_ACCELERATED_FILES="8000"
+export OPCACHE_REVALIDATE_FREQ="60"
+export OPCACHE_FAST_SHUTDOWN="1"
+export OPCACHE_ENABLE_CLI="0"
+
+# PHP-FPM Configuration - Static mode for better multi-core utilization
+export FPM_PM_MODE="static"
+export FPM_MAX_CHILDREN="25"
+export FPM_START_SERVERS="25"
+export FPM_MIN_SPARE_SERVERS="25"
+export FPM_MAX_SPARE_SERVERS="25"
+export FPM_PROCESS_IDLE_TIMEOUT="10s"
+export FPM_MAX_REQUESTS="1000"
+export FPM_REQUEST_TERMINATE_TIMEOUT="0"
+export FPM_REQUEST_SLOWLOG_TIMEOUT="0"
+export FPM_SLOWLOG="/dev/stderr"
+
+# Nginx Configuration - Utilize multiple cores
+export NGINX_WORKER_PROCESSES="2"
+export NGINX_WORKER_CONNECTIONS="2048"
+export NGINX_KEEPALIVE_TIMEOUT="65"
+export NGINX_KEEPALIVE_REQUESTS="100"
+export NGINX_GZIP_COMP_LEVEL="6"
+
+# Redis Configuration
+export REDIS_MAXMEMORY="256mb"
+export REDIS_MAXMEMORY_POLICY="allkeys-lru"
+export REDIS_SAVE=""
+export REDIS_APPENDONLY="no"
+export REDIS_BIND="127.0.0.1"
+export REDIS_PORT="6379"
+export REDIS_TIMEOUT="300"
+export REDIS_LOGLEVEL="notice"
+export REDIS_LOGFILE=""
+export REDIS_TCP_KEEPALIVE="60"
+export REDIS_TCP_BACKLOG="511"
+export REDIS_PROTECTED_MODE="yes"
+export REDIS_RENAME_FLUSHDB=""
+export REDIS_RENAME_FLUSHALL=""
+export REDIS_RENAME_KEYS=""
+export REDIS_RENAME_CONFIG=""
+export REDIS_DATABASES="16"
+export REDIS_STOP_WRITES_ON_BGSAVE_ERROR="yes"
+export REDIS_RDB_COMPRESSION="yes"
+export REDIS_RDB_CHECKSUM="yes"

@@ -77,12 +77,27 @@ services:
 docker-compose up -d
 ```
 
+### 多资源配置支持
+
+容器现在支持多种VPS配置的自动优化，从1H512M到2H4G：
+
+```bash
+# 使用预设配置
+docker run -p 80:8080 -e RESOURCE_PROFILE=1h1g zhoujie218/php-nginx
+
+# 支持的配置：1h512m, 1h1g, 1h2g, 2h2g, 2h4g
+```
+
 ### 环境变量配置
 
 | 变量名 | 默认值 | 说明 |
 |--------|--------|------|
+| `RESOURCE_PROFILE` | `1h512m` | 资源配置预设 |
 | `PHP_MEMORY_LIMIT` | 64M | PHP内存限制 |
+| `OPCACHE_MEMORY` | 32 | OPcache内存大小(MB) |
 | `REDIS_MAXMEMORY` | 64mb | Redis最大内存 |
+| `FPM_MAX_CHILDREN` | 20 | PHP-FPM最大进程数 |
+| `FPM_PM_MODE` | ondemand | 进程管理模式 |
 | `NGINX_WORKER_PROCESSES` | auto | Nginx工作进程数 |
 
 ## 版本管理
@@ -143,6 +158,7 @@ GET /admin.php
 * [🚀 部署指南](docs/部署指南.md) - 工作流触发、版本管理、镜像使用
 * [📖 项目指南](docs/项目指南.md) - 贡献指南、开发指南、代码规范
 * [💡 使用示例](docs/使用示例.md) - 实际应用场景、最佳实践、故障恢复
+* [⚙️ 多资源配置指南](docs/多资源配置指南.md) - 不同VPS配置的优化方案
 
 
 

@@ -1,0 +1,153 @@
+# Docker Compose 多资源配置示例
+# 展示不同VPS配置的使用方法
+
+version: '3.8'
+
+# 1H512M配置示例 - 默认配置，适合小型网站
+services:
+  php-nginx-512m:
+    image: zhoujie218/php-nginx:latest
+    container_name: php-nginx-512m
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./src:/var/www/html
+    environment:
+      - RESOURCE_PROFILE=1h512m
+    restart: unless-stopped
+    profiles:
+      - 512m
+
+# 1H1G配置示例 - 适合中小型网站
+  php-nginx-1g:
+    image: zhoujie218/php-nginx:latest
+    container_name: php-nginx-1g
+    ports:
+      - "8081:8080"
+    volumes:
+      - ./src:/var/www/html
+    environment:
+      - RESOURCE_PROFILE=1h1g
+    restart: unless-stopped
+    profiles:
+      - 1g
+
+# 1H2G配置示例 - 适合中型网站
+  php-nginx-2g:
+    image: zhoujie218/php-nginx:latest
+    container_name: php-nginx-2g
+    ports:
+      - "8082:8080"
+    volumes:
+      - ./src:/var/www/html
+    environment:
+      - RESOURCE_PROFILE=1h2g
+    restart: unless-stopped
+    profiles:
+      - 2g
+
+# 2H2G配置示例 - 适合中大型网站，多核优化
+  php-nginx-2h2g:
+    image: zhoujie218/php-nginx:latest
+    container_name: php-nginx-2h2g
+    ports:
+      - "8083:8080"
+    volumes:
+      - ./src:/var/www/html
+    environment:
+      - RESOURCE_PROFILE=2h2g
+    restart: unless-stopped
+    profiles:
+      - 2h2g
+
+# 2H4G配置示例 - 适合大型网站，高性能配置
+  php-nginx-2h4g:
+    image: zhoujie218/php-nginx:latest
+    container_name: php-nginx-2h4g
+    ports:
+      - "8084:8080"
+    volumes:
+      - ./src:/var/www/html
+    environment:
+      - RESOURCE_PROFILE=2h4g
+    restart: unless-stopped
+    profiles:
+      - 2h4g
+
+# 自定义配置示例 - 通过环境变量自定义
+  php-nginx-custom:
+    image: zhoujie218/php-nginx:latest
+    container_name: php-nginx-custom
+    ports:
+      - "8085:8080"
+    volumes:
+      - ./src:/var/www/html
+    environment:
+      # 自定义PHP配置
+      - PHP_MEMORY_LIMIT=256M
+      - PHP_MAX_EXECUTION_TIME=120
+      - PHP_POST_MAX_SIZE=32M
+      - PHP_UPLOAD_MAX_FILESIZE=16M
+      
+      # 自定义OPcache配置
+      - OPCACHE_MEMORY=128
+      - OPCACHE_MAX_ACCELERATED_FILES=8000
+      
+      # 自定义PHP-FPM配置
+      - FPM_PM_MODE=dynamic
+      - FPM_MAX_CHILDREN=40
+      - FPM_START_SERVERS=8
+      - FPM_MIN_SPARE_SERVERS=4
+      - FPM_MAX_SPARE_SERVERS=20
+      
+      # 自定义Nginx配置
+      - NGINX_WORKER_PROCESSES=auto
+      - NGINX_WORKER_CONNECTIONS=2048
+      - NGINX_GZIP_COMP_LEVEL=6
+      
+      # 自定义Redis配置
+      - REDIS_MAXMEMORY=256mb
+      - REDIS_MAXMEMORY_POLICY=allkeys-lru
+    restart: unless-stopped
+    profiles:
+      - custom
+
+# 开发环境配置示例
+  php-nginx-dev:
+    image: zhoujie218/php-nginx:latest
+    container_name: php-nginx-dev
+    ports:
+      - "8086:8080"
+    volumes:
+      - ./src:/var/www/html
+    environment:
+      # 开发环境优化
+      - PHP_DISPLAY_ERRORS=On
+      - PHP_MAX_EXECUTION_TIME=300
+      - PHP_MEMORY_LIMIT=128M
+      - OPCACHE_ENABLE=0  # 开发时禁用OPcache
+      - FPM_PM_MODE=dynamic
+      - FPM_MAX_CHILDREN=10
+    restart: unless-stopped
+    profiles:
+      - dev
+
+# 生产环境配置示例 - 高可用配置
+  php-nginx-prod:
+    image: zhoujie218/php-nginx:latest
+    container_name: php-nginx-prod
+    ports:
+      - "8087:8080"
+    volumes:
+      - ./src:/var/www/html
+    environment:
+      # 生产环境优化
+      - RESOURCE_PROFILE=2h4g
+      - PHP_DISPLAY_ERRORS=Off
+      - PHP_LOG_ERRORS=On
+      - FPM_PM_MODE=static
+      - OPCACHE_ENABLE=1
+      - OPCACHE_MEMORY=256
+    restart: unless-stopped
+    profiles:
+      - prod
