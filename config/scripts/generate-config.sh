@@ -100,28 +100,17 @@ validate_config() {
 main() {
     log "Starting dynamic configuration generation"
     
-    # Check if custom configuration files are mounted (highest priority)
-    if [ -f "$CONFIG_DIR/php84/conf.d/custom.ini" ] && [ ! -L "$CONFIG_DIR/php84/conf.d/custom.ini" ]; then
-        log "Using mounted PHP configuration file"
-    elif [ -f "$CONFIG_DIR/php84/php-fpm.d/www.conf" ] && [ ! -L "$CONFIG_DIR/php84/php-fpm.d/www.conf" ]; then
-        log "Using mounted PHP-FPM configuration file"
-    elif [ -f "$CONFIG_DIR/nginx/nginx.conf" ] && [ ! -L "$CONFIG_DIR/nginx/nginx.conf" ]; then
-        log "Using mounted Nginx configuration file"
-    elif [ -f "$CONFIG_DIR/redis.conf" ] && [ ! -L "$CONFIG_DIR/redis.conf" ]; then
-        log "Using mounted Redis configuration file"
-    else
-        # No mounted configurations, proceed with dynamic generation
-        
-        # Load preset configuration if specified
-        local profile="${RESOURCE_PROFILE:-$DEFAULT_PROFILE}"
-        load_preset "$profile"
-        
-        # Generate configuration from templates
-        generate_from_templates
-        
-        # Validate generated configuration
-        validate_config
-    fi
+    # Always proceed with dynamic generation
+    # Load preset configuration if specified
+    local profile="${RESOURCE_PROFILE:-$DEFAULT_PROFILE}"
+    log "Using resource profile: $profile"
+    load_preset "$profile"
+    
+    # Generate configuration from templates
+    generate_from_templates
+    
+    # Validate generated configuration
+    validate_config
     
     log "Configuration generation completed"
 }
