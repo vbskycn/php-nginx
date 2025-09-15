@@ -74,8 +74,13 @@ fi
 
 # 配置Nginx
 echo "配置Nginx..."
+echo "Nginx环境变量: NGINX_WORKER_PROCESSES=$NGINX_WORKER_PROCESSES, NGINX_WORKER_CONNECTIONS=$NGINX_WORKER_CONNECTIONS"
 if envsubst < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf; then
     echo "Nginx配置完成"
+    echo "检查生成的Nginx配置..."
+    head -10 /etc/nginx/nginx.conf
+    echo "验证Nginx配置语法..."
+    nginx -t
 else
     echo "错误: Nginx配置失败"
     exit 1
