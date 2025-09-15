@@ -1,0 +1,23 @@
+services:
+  app:
+    image: ${IMAGE_NAME}:${IMAGE_TAG}
+    build: .
+    ports:
+      - "8080:8080"
+  debug:
+    image: alpine:3.21
+    depends_on:
+      - app
+    command: sh -c "
+      echo '等待应用启动...'
+      sleep 10
+      echo '安装curl...'
+      apk --no-cache add curl
+      echo '测试根路径...'
+      curl -v http://app:8080/ || echo '根路径测试失败'
+      echo '测试PHP页面...'
+      curl -v http://app:8080/php.php || echo 'PHP页面测试失败'
+      echo '检查PHP版本...'
+      curl -s http://app:8080/php.php | grep -i 'php 8.4' && echo '找到PHP 8.4' || echo '未找到PHP 8.4'
+      echo '测试完成'
+    "
