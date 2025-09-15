@@ -23,14 +23,15 @@
 
 ## 项目目标
 
-这个容器镜像的目标是提供一个在容器中运行Nginx和PHP-FPM的示例，专门针对512M VPS进行优化，遵循最佳实践，易于理解和修改以满足您的需求。特别适合资源受限的小型服务器环境。如你需要可以自行调整并重新编译
+这个容器镜像的目标是提供一个在容器中运行Nginx和PHP-FPM的示例，支持多种VPS配置的自动优化，遵循最佳实践，易于理解和修改以满足您的需求。特别适合从512M到4GB内存的各种服务器环境。
 
-## 512M VPS 优化特性
+## 多配置支持特性
 
-* **内存优化**：PHP内存限制64MB，OPcache内存32MB，Redis内存限制64MB
-* **进程管理**：PHP-FPM使用`on-demand`模式，按需创建进程，空闲时自动回收
-* **并发控制**：最大50个PHP-FPM进程，支持50个并发用户
-* **缓存策略**：启用OPcache加速，Redis LRU淘汰策略，静态资源5天缓存
+* **智能配置**：支持5种VPS配置预设（1H512M、1H1G、1H2G、2H2G、2H4G）
+* **动态优化**：根据硬件配置自动调整PHP、Redis、Nginx参数
+* **内存优化**：针对不同内存大小优化PHP内存限制、OPcache、Redis配置
+* **进程管理**：智能选择PHP-FPM进程管理模式（ondemand/dynamic/static）
+* **并发控制**：根据CPU和内存配置优化最大进程数和并发处理能力
 * **轻量级基础**：基于Alpine Linux，镜像大小仅约40MB
 * **资源监控**：所有服务日志统一输出，便于监控和调试
 
@@ -38,10 +39,31 @@
 
 ### 基本使用
 
-启动Docker容器：
+启动Docker容器（使用默认1H512M配置）：
 
 ```bash
 docker run -p 80:8080 zhoujie218/php-nginx
+```
+
+### 多配置支持
+
+根据您的VPS配置选择合适的预设：
+
+```bash
+# 1H512M配置（默认，适合小型网站）
+docker run -p 80:8080 -e VPS_CONFIG=1H512M zhoujie218/php-nginx
+
+# 1H1G配置（适合中型网站）
+docker run -p 80:8080 -e VPS_CONFIG=1H1G zhoujie218/php-nginx
+
+# 1H2G配置（适合大型网站）
+docker run -p 80:8080 -e VPS_CONFIG=1H2G zhoujie218/php-nginx
+
+# 2H2G配置（适合高并发应用）
+docker run -p 80:8080 -e VPS_CONFIG=2H2G zhoujie218/php-nginx
+
+# 2H4G配置（适合企业级应用）
+docker run -p 80:8080 -e VPS_CONFIG=2H4G zhoujie218/php-nginx
 ```
 
 访问以下地址：
@@ -67,7 +89,7 @@ services:
     volumes:
       - ./src:/var/www/html
     environment:
-      - PHP_MEMORY_LIMIT=128M
+      - VPS_CONFIG=1H1G  # 根据您的VPS配置选择
     restart: unless-stopped
 ```
 
@@ -81,9 +103,10 @@ docker-compose up -d
 
 | 变量名 | 默认值 | 说明 |
 |--------|--------|------|
+| `VPS_CONFIG` | 1H512M | VPS配置预设（1H512M/1H1G/1H2G/2H2G/2H4G） |
 | `PHP_MEMORY_LIMIT` | 64M | PHP内存限制 |
 | `REDIS_MAXMEMORY` | 64mb | Redis最大内存 |
-| `NGINX_WORKER_PROCESSES` | auto | Nginx工作进程数 |
+| `PHP_FPM_MAX_CHILDREN` | 20 | PHP-FPM最大进程数 |
 
 ## 版本管理
 
