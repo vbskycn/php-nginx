@@ -35,16 +35,22 @@ substitute_template() {
     log "DEBUG: PHP_MEMORY_LIMIT=$PHP_MEMORY_LIMIT"
     
     # Use envsubst to replace environment variables
-    envsubst < "$template_file" > "$output_file"
-    
-    # Debug: show generated content
-    log "Generated configuration: $output_file"
-    if [ -f "$output_file" ]; then
-        log "File size: $(wc -c < "$output_file") bytes"
-        log "First few lines:"
-        head -5 "$output_file" | while read line; do
-            log "  $line"
-        done
+    if envsubst < "$template_file" > "$output_file"; then
+        log "Generated configuration: $output_file"
+        if [ -f "$output_file" ]; then
+            log "File size: $(wc -c < "$output_file") bytes"
+            if [ $(wc -c < "$output_file") -eq 0 ]; then
+                log "ERROR: Generated file is empty: $output_file"
+                return 1
+            fi
+            log "First few lines:"
+            head -5 "$output_file" | while read line; do
+                log "  $line"
+            done
+        fi
+    else
+        log "ERROR: Failed to generate configuration: $output_file"
+        return 1
     fi
 }
 
@@ -105,7 +111,12 @@ validate_config() {
     
     # Test PHP configuration
     if ! php -m > /dev/null 2>&1; then
-        log "WARNING: PHP configuration validation failed"
+        log "ERROR: PHP configuration validation failed"
+        log "PHP error output:"
+        php -m 2>&1 | head -10
+        return 1
+    else
+        log "PHP configuration validation passed"
     fi
     
     # Test Nginx configuration
