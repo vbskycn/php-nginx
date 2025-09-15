@@ -8,10 +8,6 @@ set -e
 # Configuration directories
 TEMPLATES_DIR="/etc/nginx-config-templates"
 CONFIG_DIR="/etc"
-PRESETS_DIR="/etc/nginx-config-presets"
-
-# Default configuration values
-DEFAULT_PROFILE="1h512m"
 
 # Function to log messages
 log() {
@@ -48,39 +44,6 @@ substitute_template() {
     fi
 }
 
-# Function to load preset configuration
-load_preset() {
-    local profile="$1"
-    local preset_dir="$PRESETS_DIR/$profile"
-    
-    if [ -d "$preset_dir" ]; then
-        log "Loading preset configuration: $profile"
-        
-        # Set environment variables from preset
-        if [ -f "$preset_dir/env" ]; then
-            # Export all variables from the env file
-            set -a
-            . "$preset_dir/env"
-            set +a
-            log "Loaded environment variables from preset"
-            
-            # Debug: show some key variables
-            log "DEBUG: RESOURCE_PROFILE=$RESOURCE_PROFILE"
-            log "DEBUG: REDIS_MAXMEMORY=$REDIS_MAXMEMORY"
-            log "DEBUG: PHP_MEMORY_LIMIT=$PHP_MEMORY_LIMIT"
-        fi
-        
-        # Copy preset files if they exist
-        for config_file in php.ini fpm-pool.conf nginx.conf redis.conf; do
-            if [ -f "$preset_dir/$config_file" ]; then
-                cp "$preset_dir/$config_file" "$CONFIG_DIR/"
-                log "Copied preset file: $config_file"
-            fi
-        done
-    else
-        log "WARNING: Preset directory not found: $preset_dir"
-    fi
-}
 
 # Function to generate configuration from templates
 generate_from_templates() {
@@ -123,11 +86,16 @@ validate_config() {
 main() {
     log "Starting dynamic configuration generation"
     
-    # Always proceed with dynamic generation
-    # Load preset configuration if specified
-    local profile="${RESOURCE_PROFILE:-$DEFAULT_PROFILE}"
-    log "Using resource profile: $profile"
-    load_preset "$profile"
+    # Generate configuration from environment variables
+    log "Using environment variables for configuration"
+    
+    # Debug: show environment variables
+    log "DEBUG: Environment variables:"
+    log "  PHP_MEMORY_LIMIT=$PHP_MEMORY_LIMIT"
+    log "  OPCACHE_MEMORY=$OPCACHE_MEMORY"
+    log "  REDIS_MAXMEMORY=$REDIS_MAXMEMORY"
+    log "  FPM_PM_MODE=$FPM_PM_MODE"
+    log "  FPM_MAX_CHILDREN=$FPM_MAX_CHILDREN"
     
     # Generate configuration from templates
     generate_from_templates

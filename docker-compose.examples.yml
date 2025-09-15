@@ -1,78 +1,61 @@
-# Docker Compose 多资源配置示例
-# 展示不同VPS配置的使用方法
+# Docker Compose 环境变量配置示例
+# 展示不同环境变量配置的使用方法
 
 version: '3.8'
 
-# 1H512M配置示例 - 默认配置，适合小型网站
+# 小型网站配置示例 - 默认配置
 services:
-  php-nginx-512m:
+  php-nginx-small:
     image: zhoujie218/php-nginx:latest
-    container_name: php-nginx-512m
+    container_name: php-nginx-small
     ports:
       - "8080:8080"
     volumes:
       - ./src:/var/www/html
     environment:
-      - RESOURCE_PROFILE=1h512m
+      - PHP_MEMORY_LIMIT=64M
+      - OPCACHE_MEMORY=32
+      - REDIS_MAXMEMORY=64mb
+      - FPM_MAX_CHILDREN=20
     restart: unless-stopped
     profiles:
-      - 512m
+      - small
 
-# 1H1G配置示例 - 适合中小型网站
-  php-nginx-1g:
+# 中型网站配置示例
+  php-nginx-medium:
     image: zhoujie218/php-nginx:latest
-    container_name: php-nginx-1g
+    container_name: php-nginx-medium
     ports:
       - "8081:8080"
     volumes:
       - ./src:/var/www/html
     environment:
-      - RESOURCE_PROFILE=1h1g
+      - PHP_MEMORY_LIMIT=128M
+      - OPCACHE_MEMORY=64
+      - REDIS_MAXMEMORY=128mb
+      - FPM_MAX_CHILDREN=30
     restart: unless-stopped
     profiles:
-      - 1g
+      - medium
 
-# 1H2G配置示例 - 适合中型网站
-  php-nginx-2g:
+# 大型网站配置示例
+  php-nginx-large:
     image: zhoujie218/php-nginx:latest
-    container_name: php-nginx-2g
+    container_name: php-nginx-large
     ports:
       - "8082:8080"
     volumes:
       - ./src:/var/www/html
     environment:
-      - RESOURCE_PROFILE=1h2g
+      - PHP_MEMORY_LIMIT=256M
+      - OPCACHE_MEMORY=128
+      - REDIS_MAXMEMORY=256mb
+      - FPM_MAX_CHILDREN=50
+      - FPM_PM_MODE=static
+      - NGINX_WORKER_PROCESSES=2
     restart: unless-stopped
     profiles:
-      - 2g
-
-# 2H2G配置示例 - 适合中大型网站，多核优化
-  php-nginx-2h2g:
-    image: zhoujie218/php-nginx:latest
-    container_name: php-nginx-2h2g
-    ports:
-      - "8083:8080"
-    volumes:
-      - ./src:/var/www/html
-    environment:
-      - RESOURCE_PROFILE=2h2g
-    restart: unless-stopped
-    profiles:
-      - 2h2g
-
-# 2H4G配置示例 - 适合大型网站，高性能配置
-  php-nginx-2h4g:
-    image: zhoujie218/php-nginx:latest
-    container_name: php-nginx-2h4g
-    ports:
-      - "8084:8080"
-    volumes:
-      - ./src:/var/www/html
-    environment:
-      - RESOURCE_PROFILE=2h4g
-    restart: unless-stopped
-    profiles:
-      - 2h4g
+      - large
 
 # 自定义配置示例 - 通过环境变量自定义
   php-nginx-custom:

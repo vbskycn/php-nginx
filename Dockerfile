@@ -36,9 +36,8 @@ RUN apk add --no-cache \
 # Configure all services for better caching
 ENV PHP_INI_DIR=/etc/php84
 
-# Copy configuration templates and presets
+# Copy configuration templates and scripts
 COPY config/templates /etc/nginx-config-templates/
-COPY config/presets /etc/nginx-config-presets/
 COPY config/scripts /etc/nginx-config-scripts/
 
 # Copy nginx configuration (default/fallback)
@@ -61,7 +60,8 @@ RUN ln -sf /etc/supervisor/conf.d/supervisord.conf /etc/supervisord.conf
 RUN chown -R nobody:nobody /var/www/html /run /var/lib/nginx /var/log/nginx && \
     mkdir -p /run/supervisor && \
     chown -R nobody:nobody /run/supervisor && \
-    chown -R nobody:nobody /etc/nginx-config-templates /etc/nginx-config-presets /etc/nginx-config-scripts
+    chown -R nobody:nobody /etc/nginx-config-templates /etc/nginx-config-scripts && \
+    chown -R nobody:nobody /etc/php84 /etc/nginx /etc/redis.conf
 
 # Make configuration generation script executable (after changing ownership)
 RUN chmod +x /etc/nginx-config-scripts/generate-config.sh /etc/nginx-config-scripts/start.sh
