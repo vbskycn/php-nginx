@@ -47,25 +47,44 @@ fi
 
 # 配置PHP
 echo "配置PHP..."
-envsubst < /etc/php84/conf.d/custom.ini.template > /etc/php84/conf.d/custom.ini
-echo "PHP配置完成"
+if envsubst < /etc/php84/conf.d/custom.ini.template > /etc/php84/conf.d/custom.ini; then
+    echo "PHP配置完成"
+else
+    echo "错误: PHP配置失败"
+    exit 1
+fi
 
 # 配置PHP-FPM
 echo "配置PHP-FPM..."
-envsubst < /etc/php84/php-fpm.d/www.conf.template > /etc/php84/php-fpm.d/www.conf
-echo "PHP-FPM配置完成"
+if envsubst < /etc/php84/php-fpm.d/www.conf.template > /etc/php84/php-fpm.d/www.conf; then
+    echo "PHP-FPM配置完成"
+else
+    echo "错误: PHP-FPM配置失败"
+    exit 1
+fi
 
 # 配置Redis
 echo "配置Redis..."
-envsubst < /etc/redis.conf.template > /etc/redis.conf
-echo "Redis配置完成"
+if envsubst < /etc/redis.conf.template > /etc/redis.conf; then
+    echo "Redis配置完成"
+else
+    echo "错误: Redis配置失败"
+    exit 1
+fi
 
 # 配置Nginx
 echo "配置Nginx..."
-envsubst < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf
-echo "Nginx配置完成"
+if envsubst < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf; then
+    echo "Nginx配置完成"
+else
+    echo "错误: Nginx配置失败"
+    exit 1
+fi
 
 echo "环境变量配置完成！"
+
+# 等待配置文件写入完成
+sleep 2
 
 # 显示当前配置摘要
 echo "=== 配置摘要 ==="
