@@ -49,7 +49,8 @@ COPY config/redis.conf.template /etc/redis.conf.template
 
 # Copy configuration script
 COPY configure.sh /usr/local/bin/configure.sh
-RUN chmod +x /usr/local/bin/configure.sh
+COPY configure-simple.sh /usr/local/bin/configure-simple.sh
+RUN chmod +x /usr/local/bin/configure.sh /usr/local/bin/configure-simple.sh
 
 # Copy supervisord configuration
 COPY config/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
