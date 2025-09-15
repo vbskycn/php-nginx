@@ -77,28 +77,12 @@ services:
 docker-compose up -d
 ```
 
-### 动态配置支持
-
-容器支持通过环境变量动态配置各种参数：
-
-```bash
-# 自定义配置
-docker run -p 80:8080 \
-  -e PHP_MEMORY_LIMIT=128M \
-  -e OPCACHE_MEMORY=64 \
-  -e REDIS_MAXMEMORY=128mb \
-  zhoujie218/php-nginx
-```
-
 ### 环境变量配置
 
 | 变量名 | 默认值 | 说明 |
 |--------|--------|------|
 | `PHP_MEMORY_LIMIT` | 64M | PHP内存限制 |
-| `OPCACHE_MEMORY` | 32 | OPcache内存大小(MB) |
 | `REDIS_MAXMEMORY` | 64mb | Redis最大内存 |
-| `FPM_MAX_CHILDREN` | 20 | PHP-FPM最大进程数 |
-| `FPM_PM_MODE` | ondemand | 进程管理模式 |
 | `NGINX_WORKER_PROCESSES` | auto | Nginx工作进程数 |
 
 ## 版本管理
@@ -159,7 +143,6 @@ GET /admin.php
 * [🚀 部署指南](docs/部署指南.md) - 工作流触发、版本管理、镜像使用
 * [📖 项目指南](docs/项目指南.md) - 贡献指南、开发指南、代码规范
 * [💡 使用示例](docs/使用示例.md) - 实际应用场景、最佳实践、故障恢复
-* [⚙️ 动态配置指南](docs/多资源配置指南.md) - 环境变量配置优化方案
 
 
 

@@ -30,25 +30,20 @@ RUN apk add --no-cache \
   php84-xmlwriter \
   redis \
   supervisor \
-  gettext \
   && ln -s /usr/bin/php84 /usr/bin/php
 
 # Configure all services for better caching
 ENV PHP_INI_DIR=/etc/php84
 
-# Copy configuration templates and scripts
-COPY config/templates /etc/nginx-config-templates/
-COPY config/scripts /etc/nginx-config-scripts/
-
-# Copy nginx configuration (default/fallback)
+# Copy nginx configuration
 COPY config/nginx.conf /etc/nginx/nginx.conf
 COPY config/conf.d /etc/nginx/conf.d/
 
-# Copy PHP-FPM configuration (default/fallback)
+# Copy PHP-FPM configuration
 COPY config/fpm-pool.conf ${PHP_INI_DIR}/php-fpm.d/www.conf
 COPY config/php.ini ${PHP_INI_DIR}/conf.d/custom.ini
 
-# Copy Redis configuration (default/fallback)
+# Copy Redis configuration
 COPY config/redis.conf /etc/redis.conf
 
 # Copy supervisord configuration
@@ -59,12 +54,7 @@ RUN ln -sf /etc/supervisor/conf.d/supervisord.conf /etc/supervisord.conf
 # Make sure files/folders needed by the processes are accessable when they run under the nobody user
 RUN chown -R nobody:nobody /var/www/html /run /var/lib/nginx /var/log/nginx && \
     mkdir -p /run/supervisor && \
-    chown -R nobody:nobody /run/supervisor && \
-    chown -R nobody:nobody /etc/nginx-config-templates /etc/nginx-config-scripts && \
-    chown -R nobody:nobody /etc/php84 /etc/nginx /etc/redis.conf
-
-# Make configuration generation script executable (after changing ownership)
-RUN chmod +x /etc/nginx-config-scripts/generate-config.sh /etc/nginx-config-scripts/start.sh
+    chown -R nobody:nobody /run/supervisor
 
 # Switch to use a non-root user from here on
 USER nobody
@@ -75,8 +65,8 @@ COPY --chown=nobody src/ /var/www/html/
 # Expose the port nginx is reachable on
 EXPOSE 8080
 
-# Use custom startup script for dynamic configuration
-CMD ["/etc/nginx-config-scripts/start.sh"]
+# Let supervisord start nginx & php-fpm
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
 
 # Configure a healthcheck to validate that everything is up&running
 HEALTHCHECK --timeout=10s CMD curl --silent --fail http://127.0.0.1:8080/fpm-ping || exit 1
