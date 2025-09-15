@@ -30,6 +30,7 @@ RUN apk add --no-cache \
   php84-xmlwriter \
   redis \
   supervisor \
+  gettext \
   && ln -s /usr/bin/php84 /usr/bin/php
 
 # Configure all services for better caching

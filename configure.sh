@@ -7,21 +7,46 @@ set -e
 
 echo "开始配置环境变量..."
 
+# 检查模板文件是否存在
+if [ ! -f "/etc/php84/conf.d/custom.ini.template" ]; then
+    echo "错误: PHP配置模板文件不存在"
+    exit 1
+fi
+
+if [ ! -f "/etc/php84/php-fpm.d/www.conf.template" ]; then
+    echo "错误: PHP-FPM配置模板文件不存在"
+    exit 1
+fi
+
+if [ ! -f "/etc/redis.conf.template" ]; then
+    echo "错误: Redis配置模板文件不存在"
+    exit 1
+fi
+
+if [ ! -f "/etc/nginx/nginx.conf.template" ]; then
+    echo "错误: Nginx配置模板文件不存在"
+    exit 1
+fi
+
 # 配置PHP
 echo "配置PHP..."
 envsubst < /etc/php84/conf.d/custom.ini.template > /etc/php84/conf.d/custom.ini
+echo "PHP配置完成"
 
 # 配置PHP-FPM
 echo "配置PHP-FPM..."
 envsubst < /etc/php84/php-fpm.d/www.conf.template > /etc/php84/php-fpm.d/www.conf
+echo "PHP-FPM配置完成"
 
 # 配置Redis
 echo "配置Redis..."
 envsubst < /etc/redis.conf.template > /etc/redis.conf
+echo "Redis配置完成"
 
 # 配置Nginx
 echo "配置Nginx..."
 envsubst < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf
+echo "Nginx配置完成"
 
 echo "环境变量配置完成！"
 
