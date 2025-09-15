@@ -109,3 +109,7 @@ echo "Redis最大内存: $REDIS_MAXMEMORY"
 echo "Nginx工作进程: $NGINX_WORKER_PROCESSES"
 echo "Nginx工作连接: $NGINX_WORKER_CONNECTIONS"
 echo "================"
+
+echo "配置完成，启动Supervisord..."
+# 启动Supervisord来管理所有服务
+exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf

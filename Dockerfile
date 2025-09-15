@@ -49,8 +49,7 @@ COPY config/redis.conf.template /etc/redis.conf.template
 
 # Copy configuration script
 COPY configure.sh /usr/local/bin/configure.sh
-COPY start.sh /usr/local/bin/start.sh
-RUN chmod +x /usr/local/bin/configure.sh /usr/local/bin/start.sh
+RUN chmod +x /usr/local/bin/configure.sh
 
 # 确保配置文件目录对nobody用户可写
 RUN chown -R nobody:nobody /etc/php84/conf.d /etc/php84/php-fpm.d /etc/redis.conf /etc/nginx/nginx.conf
@@ -74,8 +73,8 @@ COPY --chown=nobody src/ /var/www/html/
 # Expose the port nginx is reachable on
 EXPOSE 8080
 
-# Let supervisord start nginx & php-fpm
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
+# Start with configuration script, which will then start supervisord
+CMD ["/usr/local/bin/configure.sh"]
 
 # Configure a healthcheck to validate that everything is up&running
 HEALTHCHECK --timeout=10s CMD curl --silent --fail http://127.0.0.1:8080/fpm-ping || exit 1
