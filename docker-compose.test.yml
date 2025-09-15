@@ -6,4 +6,4 @@ services:
     image: alpine:3.21
     depends_on:
       - app
-    command: sh -c "apk --no-cache add curl && sleep 15 && curl --silent --fail http://app:8080/php.php | grep -i 'php'"
+    command: sh -c "apk --no-cache add curl && curl --silent --fail http://app:8080/php.php | grep 'PHP Version'"

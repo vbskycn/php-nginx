@@ -35,22 +35,16 @@ substitute_template() {
     log "DEBUG: PHP_MEMORY_LIMIT=$PHP_MEMORY_LIMIT"
     
     # Use envsubst to replace environment variables
-    if envsubst < "$template_file" > "$output_file"; then
-        log "Generated configuration: $output_file"
-        if [ -f "$output_file" ]; then
-            log "File size: $(wc -c < "$output_file") bytes"
-            if [ $(wc -c < "$output_file") -eq 0 ]; then
-                log "ERROR: Generated file is empty: $output_file"
-                return 1
-            fi
-            log "First few lines:"
-            head -5 "$output_file" | while read line; do
-                log "  $line"
-            done
-        fi
-    else
-        log "ERROR: Failed to generate configuration: $output_file"
-        return 1
+    envsubst < "$template_file" > "$output_file"
+    
+    # Debug: show generated content
+    log "Generated configuration: $output_file"
+    if [ -f "$output_file" ]; then
+        log "File size: $(wc -c < "$output_file") bytes"
+        log "First few lines:"
+        head -5 "$output_file" | while read line; do
+            log "  $line"
+        done
     fi
 }
 
@@ -93,16 +87,16 @@ generate_from_templates() {
     log "Generating configuration from templates"
     
     # Generate PHP configuration
-    substitute_template "$TEMPLATES_DIR/php.ini.template" "$CONFIG_DIR/php84/conf.d/custom.ini" || log "WARNING: Failed to generate PHP configuration"
+    substitute_template "$TEMPLATES_DIR/php.ini.template" "$CONFIG_DIR/php84/conf.d/custom.ini"
     
     # Generate PHP-FPM configuration
-    substitute_template "$TEMPLATES_DIR/fpm-pool.conf.template" "$CONFIG_DIR/php84/php-fpm.d/www.conf" || log "WARNING: Failed to generate PHP-FPM configuration"
+    substitute_template "$TEMPLATES_DIR/fpm-pool.conf.template" "$CONFIG_DIR/php84/php-fpm.d/www.conf"
     
     # Generate Nginx configuration
-    substitute_template "$TEMPLATES_DIR/nginx.conf.template" "$CONFIG_DIR/nginx/nginx.conf" || log "WARNING: Failed to generate Nginx configuration"
+    substitute_template "$TEMPLATES_DIR/nginx.conf.template" "$CONFIG_DIR/nginx/nginx.conf"
     
     # Generate Redis configuration
-    substitute_template "$TEMPLATES_DIR/redis.conf.template" "$CONFIG_DIR/redis.conf" || log "WARNING: Failed to generate Redis configuration"
+    substitute_template "$TEMPLATES_DIR/redis.conf.template" "$CONFIG_DIR/redis.conf"
 }
 
 # Function to validate configuration
@@ -112,10 +106,6 @@ validate_config() {
     # Test PHP configuration
     if ! php -m > /dev/null 2>&1; then
         log "WARNING: PHP configuration validation failed"
-        log "PHP error output:"
-        php -m 2>&1 | head -10
-    else
-        log "PHP configuration validation passed"
     fi
     
     # Test Nginx configuration
