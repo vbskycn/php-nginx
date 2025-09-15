@@ -1,6 +1,6 @@
-# Docker PHP-FPM 8.4 & Nginx 1.26 基于 Alpine Linux
+# Docker PHP-FPM 8.4.5 & Nginx 1.26 & Redis7.2.9基于 Alpine Linux
 
-基于 [Alpine Linux](https://www.alpinelinux.org/) 构建的 Docker PHP-FPM 8.4 & Nginx 1.26 容器镜像示例。
+基于 [Alpine Linux](https://www.alpinelinux.org/) 构建的 Docker PHP-FPM 8.4 & Nginx 1.26 & Redis7.2.9 容器镜像示例。
 
 仓库地址: https://github.com/vbskycn/php-nginx
 
@@ -22,6 +22,8 @@
 ![nginx 1.26](https://img.shields.io/badge/nginx-1.26-brightgreen.svg)
 ![php 8.4](https://img.shields.io/badge/php-8.4-brightgreen.svg)
 ![License MIT](https://img.shields.io/badge/license-MIT-blue.svg)
+
+![image-20250915150917267](assets/image-20250915150917267.png)
 
 ## 项目目标
 
@@ -311,6 +313,14 @@ GET /redis.php?action=delete_key&key={key_name}
 ```bash
 GET /admin.php
 ```
+
+#### 系统自带管理密码（挂载自己的目录后就无效了）
+
+```
+admin123
+```
+
+
 
 ### 健康检查端点
 
