@@ -1,9 +1,9 @@
-worker_processes ${NGINX_WORKER_PROCESSES:-auto};
+worker_processes ${NGINX_WORKER_PROCESSES};
 error_log stderr warn;
 pid /run/nginx.pid;
 
 events {
-    worker_connections ${NGINX_WORKER_CONNECTIONS:-1024};
+    worker_connections ${NGINX_WORKER_CONNECTIONS};
 }
 
 http {

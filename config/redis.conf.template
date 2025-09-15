@@ -4,8 +4,8 @@ save ""
 appendonly no
 
 # Memory management - configurable via REDIS_MAXMEMORY and REDIS_MAXMEMORY_POLICY
-maxmemory ${REDIS_MAXMEMORY:-64mb}
-maxmemory-policy ${REDIS_MAXMEMORY_POLICY:-allkeys-lru}
+maxmemory ${REDIS_MAXMEMORY}
+maxmemory-policy ${REDIS_MAXMEMORY_POLICY}
 
 # Network settings
 bind 127.0.0.1
