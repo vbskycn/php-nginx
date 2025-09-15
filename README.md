@@ -47,7 +47,7 @@
 
 ### 基本使用
 
-启动Docker容器：
+启动Docker容器：（不加变量为默认优化1H512M机器，直接使用就行）
 
 ```bash
 docker run -p 80:8080 zhoujie218/php-nginx:latest
