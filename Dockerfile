@@ -57,14 +57,20 @@ COPY config/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 # Create symlink for supervisorctl compatibility
 RUN ln -sf /etc/supervisor/conf.d/supervisord.conf /etc/supervisord.conf
 
-# Make sure files/folders needed by the processes are accessible
-RUN mkdir -p /run/supervisor
+# Make sure files/folders needed by the processes are accessable when they run under the nobody user
+RUN chown -R nobody:nobody /var/www/html /run /var/lib/nginx /var/log/nginx && \
+    mkdir -p /run/supervisor && \
+    chown -R nobody:nobody /run/supervisor && \
+    chown -R nobody:nobody /etc/nginx-config-templates /etc/nginx-config-presets /etc/nginx-config-scripts
 
-# Make configuration generation script executable
+# Make configuration generation script executable (after changing ownership)
 RUN chmod +x /etc/nginx-config-scripts/generate-config.sh /etc/nginx-config-scripts/start.sh
 
+# Switch to use a non-root user from here on
+USER nobody
+
 # Add application
-COPY src/ /var/www/html/
+COPY --chown=nobody src/ /var/www/html/
 
 # Expose the port nginx is reachable on
 EXPOSE 8080
