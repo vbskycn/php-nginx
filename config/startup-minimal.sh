@@ -28,4 +28,25 @@ echo "✅ 配置文件已生成"
 
 # 启动supervisord
 echo "🚀 启动supervisord..."
+
+# 等待服务启动
+sleep 5
+
+# 检查服务状态
+echo "📊 检查服务状态..."
+supervisorctl status || echo "supervisorctl状态检查失败"
+
+# 检查端口监听
+echo "📊 检查端口监听..."
+netstat -tlnp | grep :8080 || echo "端口8080未监听"
+
+# 检查PHP-FPM socket
+echo "📊 检查PHP-FPM socket..."
+ls -la /run/php-fpm.sock || echo "PHP-FPM socket不存在"
+
+# 测试健康检查端点
+echo "📊 测试健康检查端点..."
+curl -f http://localhost:8080/fpm-ping && echo "健康检查通过" || echo "健康检查失败"
+
+# 启动supervisord
 exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf

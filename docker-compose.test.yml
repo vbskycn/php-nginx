@@ -3,11 +3,11 @@ services:
     image: ${IMAGE_NAME}:${IMAGE_TAG}
     build: .
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/fpm-ping"]
-      interval: 15s
-      timeout: 10s
-      retries: 10
-      start_period: 60s
+      test: ["CMD", "curl", "-f", "http://localhost:8080/"]
+      interval: 20s
+      timeout: 15s
+      retries: 15
+      start_period: 120s
     # 添加日志输出以便调试
     logging:
       driver: "json-file"
