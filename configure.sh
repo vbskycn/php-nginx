@@ -91,6 +91,14 @@ echo "环境变量配置完成！"
 # 等待配置文件写入完成
 sleep 2
 
+# 重新启动Nginx以使用新配置
+echo "重新启动Nginx..."
+if nginx -s reload 2>/dev/null || true; then
+    echo "Nginx重新加载配置成功"
+else
+    echo "Nginx重新加载配置失败，但继续执行"
+fi
+
 # 显示当前配置摘要
 echo "=== 配置摘要 ==="
 echo "PHP内存限制: $PHP_MEMORY_LIMIT"
