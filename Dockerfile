@@ -64,10 +64,11 @@ RUN chown -R nobody:nobody /var/www/html /run /var/lib/nginx /var/log/nginx && \
     mkdir -p /run/supervisor && \
     chown -R nobody:nobody /run/supervisor && \
     mkdir -p /var/run && \
-    chown -R nobody:nobody /var/run
+    chown -R nobody:nobody /var/run && \
+    chmod 755 /var/run
 
 # Switch to use a non-root user from here on
-USER nobody
+#USER nobody
 
 # Add application
 COPY --chown=nobody src/ /var/www/html/
