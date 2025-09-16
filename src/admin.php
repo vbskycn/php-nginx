@@ -12,29 +12,22 @@ if ($is_authenticated && isset($_POST['action'])) {
     
     switch ($action) {
         case 'restart_php':
-            $result = restartService('php-fpm84', 'PHP-FPM');
+            $result = restartService('php-fpm84', 'php-fpm');
             break;
         case 'restart_nginx':
-            $result = restartService('nginx', 'Nginx');
+            $result = restartService('nginx', 'nginx');
             break;
         case 'restart_redis':
-            $result = restartService('redis-server', 'Redis');
+            $result = restartService('redis-server', 'redis');
             break;
         case 'restart_all':
             $result = restartAllServices();
             break;
         case 'status':
-            $supervisor_config = '/etc/supervisor/conf.d/supervisord.conf';
-            $result = shell_exec("supervisorctl -c {$supervisor_config} status 2>&1");
-            if (!$result || strpos($result, 'error') !== false || strpos($result, '.ini file does not include supervisorctl section') !== false ||
-                strpos($result, 'no such file') !== false || strpos($result, 'unix:///run/supervisor.sock') !== false ||
-                strpos($result, 'could not read config file') !== false) {
-                $result = shell_exec('supervisorctl status 2>&1');
-                if (!$result || strpos($result, 'error') !== false || strpos($result, '.ini file does not include supervisorctl section') !== false ||
-                    strpos($result, 'no such file') !== false || strpos($result, 'unix:///run/supervisor.sock') !== false ||
-                    strpos($result, 'could not read config file') !== false) {
-                    $result = "Supervisord 配置问题，显示进程状态:\n" . shell_exec('ps aux | grep -E "(php-fpm|nginx|redis)" | grep -v grep 2>&1');
-                }
+            // 直接使用 supervisorctl status 命令
+            $result = shell_exec('supervisorctl status 2>&1');
+            if (!$result || strpos($result, 'error') !== false) {
+                $result = "获取服务状态失败: " . ($result ?: "未知错误");
             }
             break;
         case 'clear_redis':
@@ -141,69 +134,12 @@ function checkProcessStatus() {
 
 // 重启单个服务
 function restartService($process_name, $service_name) {
-    $result = '';
+    // 直接使用 supervisorctl 命令，现在配置已经正确
+    $result = shell_exec("supervisorctl restart {$service_name} 2>&1");
     
-    // 在容器环境中，我们需要使用正确的 supervisord 配置路径
-    $supervisor_config = '/etc/supervisor/conf.d/supervisord.conf';
-    
-    // 首先尝试使用 supervisord
-    $supervisor_result = shell_exec("supervisorctl -c {$supervisor_config} restart {$service_name} 2>&1");
-    
-    // 检查是否包含 .ini 文件错误或 socket 文件不存在
-    if (!$supervisor_result || strpos($supervisor_result, 'error') !== false || 
-        strpos($supervisor_result, 'not read config') !== false || 
-        strpos($supervisor_result, '.ini file does not include supervisorctl section') !== false ||
-        strpos($supervisor_result, 'no such file') !== false ||
-        strpos($supervisor_result, 'unix:///run/supervisor.sock') !== false ||
-        strpos($supervisor_result, 'could not read config file') !== false) {
-        
-        $result .= "Supervisord 配置问题，尝试其他方法...\n";
-        
-        // 方法1: 尝试使用默认配置
-        $default_result = shell_exec("supervisorctl restart {$service_name} 2>&1");
-        if ($default_result && strpos($default_result, 'error') === false && 
-            strpos($default_result, '.ini file does not include supervisorctl section') === false) {
-            $result = $default_result;
-        } else {
-            // 方法2: 发送信号重启进程
-            $result .= "尝试发送信号重启进程...\n";
-            
-            // 获取进程PID
-            $pid = shell_exec("pgrep -f '{$process_name}' 2>/dev/null | head -1");
-            if ($pid) {
-                $pid = trim($pid);
-                $result .= "找到进程 PID: {$pid}\n";
-                
-                // 发送 USR1 信号给 nginx，TERM 信号给其他进程
-                if ($process_name === 'nginx') {
-                    $signal_result = shell_exec("kill -USR1 {$pid} 2>&1");
-                    $result .= "发送 USR1 信号给 Nginx: {$signal_result}\n";
-                } else {
-                    $signal_result = shell_exec("kill -TERM {$pid} 2>&1");
-                    $result .= "发送 TERM 信号给进程: {$signal_result}\n";
-                    
-                    // 等待进程停止
-                    sleep(2);
-                    
-                    // 检查进程是否还在运行
-                    $still_running = shell_exec("pgrep -f '{$process_name}' 2>/dev/null");
-                    if ($still_running) {
-                        $result .= "进程仍在运行，强制终止...\n";
-                        shell_exec("kill -KILL {$pid} 2>&1");
-                        sleep(1);
-                    }
-                }
-                
-                // 检查重启结果
-                sleep(2);
-                $check_result = shell_exec("pgrep -f '{$process_name}' > /dev/null 2>&1 && echo 'SUCCESS' || echo 'FAILED'");
-                $result .= "重启结果: " . trim($check_result) . "\n";
-            } else {
-                $result .= "未找到运行中的 {$service_name} 进程\n";
-            }
-        }
-    } else {
-        $result = $supervisor_result;
+    // 如果命令执行失败，返回错误信息
+    if (!$result || strpos($result, 'error') !== false) {
+        $result = "重启 {$service_name} 失败: " . ($result ?: "未知错误");
     }
     
     return $result;
@@ -211,18 +147,12 @@ function restartService($process_name, $service_name) {
 
 // 重启所有服务
 function restartAllServices() {
-    $result = '';
+    // 直接使用 supervisorctl restart all 命令
+    $result = shell_exec("supervisorctl restart all 2>&1");
     
-    $services = [
-        ['process' => 'php-fpm84', 'name' => 'PHP-FPM'],
-        ['process' => 'nginx', 'name' => 'Nginx'],
-        ['process' => 'redis-server', 'name' => 'Redis']
-    ];
-    
-    foreach ($services as $service) {
-        $result .= "=== 重启 {$service['name']} ===\n";
-        $result .= restartService($service['process'], $service['name']);
-        $result .= "\n";
+    // 如果命令执行失败，返回错误信息
+    if (!$result || strpos($result, 'error') !== false) {
+        $result = "重启所有服务失败: " . ($result ?: "未知错误");
     }
     
     return $result;
@@ -478,7 +408,8 @@ function getProcessMemory($process_name) {
     $commands = [
         "ps -o pid,rss,comm -C {$process_name} --no-headers 2>/dev/null",
         "ps aux | grep '{$process_name}' | grep -v grep 2>/dev/null",
-        "pgrep -f '{$process_name}' | xargs ps -o pid,rss,comm --no-headers 2>/dev/null"
+        "pgrep -f '{$process_name}' | xargs ps -o pid,rss,comm --no-headers 2>/dev/null",
+        "ps aux | grep -E '(php-fpm|nginx|redis)' | grep -v grep 2>/dev/null" // 更宽泛的搜索
     ];
     
     $memory_info = '';
@@ -490,6 +421,11 @@ function getProcessMemory($process_name) {
     }
     
     if (!$memory_info || !trim($memory_info)) {
+        // 如果还是找不到，尝试使用supervisorctl检查状态
+        $supervisor_status = shell_exec("supervisorctl status 2>/dev/null");
+        if ($supervisor_status && strpos($supervisor_status, 'RUNNING') !== false) {
+            return '运行中';
+        }
         return '未运行';
     }
     
@@ -536,7 +472,7 @@ function getSystemInfo() {
     $info['php_version'] = PHP_VERSION;
     $info['php_memory_limit'] = ini_get('memory_limit');
     $info['php_max_execution_time'] = ini_get('max_execution_time');
-    $info['php_memory_usage'] = getProcessMemory('php-fpm');
+    $info['php_memory_usage'] = getProcessMemory('php-fpm84');
     
     // Nginx 信息
     $info['nginx_memory_usage'] = getProcessMemory('nginx');
