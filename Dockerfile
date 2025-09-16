@@ -62,7 +62,8 @@ RUN ln -sf /etc/supervisor/conf.d/supervisord.conf /etc/supervisord.conf
 # Make sure files/folders needed by the processes are accessable when they run under the nobody user
 RUN chown -R nobody:nobody /var/www/html /run /var/lib/nginx /var/log/nginx && \
     mkdir -p /run/supervisor && \
-    chown -R nobody:nobody /run/supervisor
+    chown -R nobody:nobody /run/supervisor && \
+    chmod 755 /dev/shm
 
 # Switch to use a non-root user from here on
 USER nobody
