@@ -336,39 +336,51 @@ function diagnoseSystem() {
 
 // 获取容器运行时间
 function getContainerUptime() {
-    // 尝试从 /proc/uptime 获取容器运行时间
-    $uptime_file = '/proc/uptime';
-    if (file_exists($uptime_file)) {
-        $uptime_data = file_get_contents($uptime_file);
-        if ($uptime_data) {
-            $parts = explode(' ', trim($uptime_data));
-            $uptime_seconds = floatval($parts[0]);
-            
-            // 转换为可读格式
-            $days = floor($uptime_seconds / 86400);
-            $hours = floor(($uptime_seconds % 86400) / 3600);
-            $minutes = floor(($uptime_seconds % 3600) / 60);
-            $seconds = floor($uptime_seconds % 60);
-            
-            if ($days > 0) {
-                return "容器运行时间: {$days}天 {$hours}小时 {$minutes}分钟";
-            } elseif ($hours > 0) {
-                return "容器运行时间: {$hours}小时 {$minutes}分钟";
-            } elseif ($minutes > 0) {
-                return "容器运行时间: {$minutes}分钟 {$seconds}秒";
-            } else {
-                return "容器运行时间: {$seconds}秒";
+    // 尝试从容器启动时间计算运行时间
+    $start_time = null;
+    
+    // 方法1: 从 /proc/1/stat 获取进程启动时间
+    if (file_exists('/proc/1/stat')) {
+        $stat_data = file_get_contents('/proc/1/stat');
+        if ($stat_data) {
+            $parts = explode(' ', $stat_data);
+            if (count($parts) >= 22) {
+                $start_time = intval($parts[21]); // 进程启动时间（时钟滴答）
+                $clock_ticks = intval(shell_exec('getconf CLK_TCK 2>/dev/null') ?: 100);
+                $start_time = $start_time / $clock_ticks; // 转换为秒
             }
         }
     }
     
-    // 备用方案：尝试使用 uptime 命令但显示为容器信息
-    $uptime = shell_exec('uptime 2>&1');
-    if ($uptime) {
-        return "容器状态: " . trim($uptime);
+    // 方法2: 从 /proc/uptime 获取系统运行时间（作为备用）
+    if (!$start_time && file_exists('/proc/uptime')) {
+        $uptime_data = file_get_contents('/proc/uptime');
+        if ($uptime_data) {
+            $parts = explode(' ', trim($uptime_data));
+            $start_time = time() - floatval($parts[0]); // 当前时间 - 系统运行时间
+        }
     }
     
-    return "无法获取容器运行时间";
+    if ($start_time) {
+        $uptime_seconds = time() - $start_time;
+        
+        // 转换为可读格式
+        $days = floor($uptime_seconds / 86400);
+        $hours = floor(($uptime_seconds % 86400) / 3600);
+        $minutes = floor(($uptime_seconds % 3600) / 60);
+        
+        if ($days > 0) {
+            return "{$days}天 {$hours}小时 {$minutes}分钟";
+        } elseif ($hours > 0) {
+            return "{$hours}小时 {$minutes}分钟";
+        } elseif ($minutes > 0) {
+            return "{$minutes}分钟";
+        } else {
+            return "刚刚启动";
+        }
+    }
+    
+    return "无法获取";
 }
 
 // 获取容器 ID
@@ -401,78 +413,103 @@ function getContainerId() {
     return "未知";
 }
 
+// 获取容器信息
+function getContainerInfo() {
+    $info = [];
+    
+    // 获取容器ID
+    $container_id = "无法获取";
+    
+    // 方法1: 从 /proc/self/cgroup 获取
+    $cgroup_file = '/proc/self/cgroup';
+    if (file_exists($cgroup_file)) {
+        $cgroup_data = file_get_contents($cgroup_file);
+        if ($cgroup_data) {
+            $lines = explode("\n", $cgroup_data);
+            foreach ($lines as $line) {
+                if (strpos($line, 'docker') !== false || strpos($line, 'containerd') !== false) {
+                    $parts = explode('/', $line);
+                    if (count($parts) >= 3) {
+                        $container_id = $parts[2];
+                        // 截取前12位作为短ID
+                        $container_id = substr($container_id, 0, 12);
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    
+    // 方法2: 从环境变量获取
+    if ($container_id === "无法获取") {
+        $container_id = getenv('HOSTNAME') ?: getenv('CONTAINER_ID') ?: "无法获取";
+    }
+    
+    $info['id'] = $container_id;
+    
+    // 获取容器名称
+    $info['name'] = getenv('CONTAINER_NAME') ?: getenv('HOSTNAME') ?: "未知";
+    
+    // 获取镜像信息
+    $info['image'] = getenv('CONTAINER_IMAGE') ?: "未知";
+    
+    // 获取容器状态
+    $info['status'] = "运行中";
+    
+    return $info;
+}
+
 // 获取进程内存占用
 function getProcessMemory($process_name) {
-    // 根据进程名称设置不同的搜索模式
-    $search_patterns = [];
-    
-    switch ($process_name) {
-        case 'php-fpm84':
-            $search_patterns = [
-                "ps aux | grep 'php-fpm' | grep -v grep 2>/dev/null",
-                "ps aux | grep '{php-fpm84}' | grep -v grep 2>/dev/null",
-                "pgrep -f 'php-fpm' | xargs ps -o pid,rss,comm --no-headers 2>/dev/null"
-            ];
-            break;
-        case 'nginx':
-            $search_patterns = [
-                "ps aux | grep 'nginx:' | grep -v grep 2>/dev/null",
-                "ps aux | grep 'nginx' | grep -v grep 2>/dev/null",
-                "pgrep -f 'nginx' | xargs ps -o pid,rss,comm --no-headers 2>/dev/null"
-            ];
-            break;
-        case 'redis':
-            $search_patterns = [
-                "ps aux | grep 'redis-server' | grep -v grep 2>/dev/null",
-                "ps aux | grep 'redis' | grep -v grep 2>/dev/null",
-                "pgrep -f 'redis' | xargs ps -o pid,rss,comm --no-headers 2>/dev/null"
-            ];
-            break;
-        default:
-            $search_patterns = [
-                "ps aux | grep '{$process_name}' | grep -v grep 2>/dev/null",
-                "pgrep -f '{$process_name}' | xargs ps -o pid,rss,comm --no-headers 2>/dev/null"
-            ];
-    }
-    
+    // 使用更简单直接的方法获取进程信息
     $memory_info = '';
-    foreach ($search_patterns as $cmd) {
-        $memory_info = shell_exec($cmd);
-        if ($memory_info && trim($memory_info)) {
-            break;
-        }
-    }
     
-    if (!$memory_info || !trim($memory_info)) {
-        // 如果还是找不到，尝试使用supervisorctl检查状态
-        $supervisor_status = shell_exec("supervisorctl status 2>/dev/null");
-        if ($supervisor_status && strpos($supervisor_status, 'RUNNING') !== false) {
-            return '运行中';
-        }
+    // 直接使用 ps aux 获取所有进程，然后过滤
+    $all_processes = shell_exec('ps aux 2>/dev/null');
+    if (!$all_processes) {
         return '未运行';
     }
     
-    $lines = explode("\n", trim($memory_info));
+    $lines = explode("\n", $all_processes);
     $total_memory = 0;
     $process_count = 0;
     
     foreach ($lines as $line) {
         if (trim($line)) {
-            $parts = preg_split('/\s+/', trim($line));
-            if (count($parts) >= 2) {
-                // 处理不同的 ps 输出格式
-                $rss_index = 1;
-                if (count($parts) >= 3 && is_numeric($parts[1]) && is_numeric($parts[2])) {
+            // 根据进程名称匹配
+            $matched = false;
+            
+            switch ($process_name) {
+                case 'php-fpm84':
+                    if (strpos($line, 'php-fpm') !== false || strpos($line, '{php-fpm84}') !== false) {
+                        $matched = true;
+                    }
+                    break;
+                case 'nginx':
+                    if (strpos($line, 'nginx') !== false) {
+                        $matched = true;
+                    }
+                    break;
+                case 'redis':
+                    if (strpos($line, 'redis-server') !== false || strpos($line, 'redis') !== false) {
+                        $matched = true;
+                    }
+                    break;
+                default:
+                    if (strpos($line, $process_name) !== false) {
+                        $matched = true;
+                    }
+            }
+            
+            if ($matched) {
+                $parts = preg_split('/\s+/', trim($line));
+                if (count($parts) >= 6) {
                     // ps aux 格式: USER PID %CPU %MEM VSZ RSS TTY STAT START TIME COMMAND
-                    $rss_index = 5; // RSS 在第6列
-                } elseif (count($parts) >= 2 && is_numeric($parts[1])) {
-                    // ps -o 格式: PID RSS COMM
-                    $rss_index = 1; // RSS 在第2列
-                }
-                
-                if (isset($parts[$rss_index]) && is_numeric($parts[$rss_index])) {
-                    $total_memory += intval($parts[$rss_index]); // RSS in KB
-                    $process_count++;
+                    $rss = intval($parts[5]); // RSS 在第6列
+                    if ($rss > 0) {
+                        $total_memory += $rss;
+                        $process_count++;
+                    }
                 }
             }
         }
@@ -482,6 +519,12 @@ function getProcessMemory($process_name) {
         // 转换为 MB
         $memory_mb = round($total_memory / 1024, 2);
         return "{$memory_mb}MB ({$process_count}个进程)";
+    }
+    
+    // 如果还是找不到，尝试使用supervisorctl检查状态
+    $supervisor_status = shell_exec("supervisorctl status 2>/dev/null");
+    if ($supervisor_status && strpos($supervisor_status, 'RUNNING') !== false) {
+        return '运行中';
     }
     
     return '未运行';
@@ -500,9 +543,13 @@ function getSystemInfo() {
     // Nginx 信息
     $info['nginx_memory_usage'] = getProcessMemory('nginx');
     
-    // 系统信息
+    // 容器信息
+    $container_info = getContainerInfo();
     $info['uptime'] = getContainerUptime();
-    $info['container_id'] = getContainerId();
+    $info['container_id'] = $container_info['id'];
+    $info['container_name'] = $container_info['name'];
+    $info['container_image'] = $container_info['image'];
+    $info['container_status'] = $container_info['status'];
     $info['memory_usage'] = shell_exec('free -h 2>&1') ?: '无法获取';
     $info['disk_usage'] = shell_exec('df -h / 2>&1') ?: '无法获取';
     
@@ -815,8 +862,11 @@ $systemInfo = getSystemInfo();
                                 <h3 class="font-semibold text-purple-800 mb-2">
                                     <i class="fas fa-info-circle text-purple-600 mr-1"></i>容器状态
                                 </h3>
-                                <p class="text-sm text-purple-700"><?php echo $systemInfo['uptime']; ?></p>
+                                <p class="text-sm text-purple-700">运行时间: <?php echo $systemInfo['uptime']; ?></p>
                                 <p class="text-sm text-purple-700">容器 ID: <?php echo $systemInfo['container_id']; ?></p>
+                                <p class="text-sm text-purple-700">容器名称: <?php echo $systemInfo['container_name']; ?></p>
+                                <p class="text-sm text-purple-700">镜像: <?php echo $systemInfo['container_image']; ?></p>
+                                <p class="text-sm text-purple-700">状态: <?php echo $systemInfo['container_status']; ?></p>
                             </div>
                         </div>
                     </div>
