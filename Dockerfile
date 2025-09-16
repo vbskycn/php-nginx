@@ -52,7 +52,7 @@ COPY configure.sh /usr/local/bin/configure.sh
 RUN chmod +x /usr/local/bin/configure.sh
 
 # 确保配置文件目录对nobody用户可写
-RUN chown -R nobody:nobody /etc/php84/conf.d /etc/php84/php-fpm.d /etc/redis.conf /etc/nginx/nginx.conf
+RUN chown -R nobody:nobody /etc/php84/conf.d /etc/php84/php-fpm.d /etc/redis.conf /etc/nginx/nginx.conf /etc/nginx/conf.d
 
 # Copy supervisord configuration
 COPY config/supervisord.conf /etc/supervisor/conf.d/supervisord.conf

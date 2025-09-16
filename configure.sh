@@ -27,6 +27,7 @@ export REDIS_MAXMEMORY=${REDIS_MAXMEMORY:-64mb}
 export REDIS_MAXMEMORY_POLICY=${REDIS_MAXMEMORY_POLICY:-allkeys-lru}
 export NGINX_WORKER_PROCESSES=${NGINX_WORKER_PROCESSES:-auto}
 export NGINX_WORKER_CONNECTIONS=${NGINX_WORKER_CONNECTIONS:-1024}
+export NGINX_SERVER_NAME=${NGINX_SERVER_NAME:-_}
 
 # 检查模板文件是否存在
 if [ ! -f "/etc/php84/conf.d/custom.ini.template" ]; then
@@ -78,7 +79,7 @@ fi
 
 # 配置Nginx
 echo "配置Nginx..."
-echo "Nginx环境变量: NGINX_WORKER_PROCESSES=$NGINX_WORKER_PROCESSES, NGINX_WORKER_CONNECTIONS=$NGINX_WORKER_CONNECTIONS"
+echo "Nginx环境变量: NGINX_WORKER_PROCESSES=$NGINX_WORKER_PROCESSES, NGINX_WORKER_CONNECTIONS=$NGINX_WORKER_CONNECTIONS, NGINX_SERVER_NAME=$NGINX_SERVER_NAME"
 if envsubst < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf; then
     echo "Nginx配置完成"
     echo "检查生成的Nginx配置..."
@@ -89,6 +90,18 @@ else
     echo "错误: Nginx配置失败"
     exit 1
 fi
+
+# 配置域名（如果提供了域名模板）
+if [ -f "/etc/nginx/conf.d/domain.conf.template" ]; then
+    echo "配置域名..."
+    if envsubst < /etc/nginx/conf.d/domain.conf.template > /etc/nginx/conf.d/domain.conf; then
+        echo "域名配置完成: $NGINX_SERVER_NAME"
+    else
+        echo "错误: 域名配置失败"
+        exit 1
+    fi
+fi
+
 
 echo "环境变量配置完成！"
 
@@ -116,6 +129,7 @@ echo "PHP-FPM最大进程: $PHP_FPM_MAX_CHILDREN"
 echo "Redis最大内存: $REDIS_MAXMEMORY"
 echo "Nginx工作进程: $NGINX_WORKER_PROCESSES"
 echo "Nginx工作连接: $NGINX_WORKER_CONNECTIONS"
+echo "Nginx服务器名: $NGINX_SERVER_NAME"
 echo "================"
 
 echo "配置完成，启动Supervisord..."
