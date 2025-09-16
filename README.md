@@ -144,6 +144,9 @@ services:
 ```
 
 **小内存机器配置示例：**
+
+默认绑定所有域名
+
 ```bash
 docker stop php-nginx
 docker rm php-nginx
