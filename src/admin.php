@@ -336,28 +336,48 @@ function diagnoseSystem() {
 
 // 获取容器运行时间
 function getContainerUptime() {
-    // 尝试从容器启动时间计算运行时间
     $start_time = null;
     
-    // 方法1: 从 /proc/1/stat 获取进程启动时间
+    // 方法1: 从supervisord进程启动时间计算（PID 1）
     if (file_exists('/proc/1/stat')) {
         $stat_data = file_get_contents('/proc/1/stat');
         if ($stat_data) {
             $parts = explode(' ', $stat_data);
             if (count($parts) >= 22) {
-                $start_time = intval($parts[21]); // 进程启动时间（时钟滴答）
+                $start_ticks = intval($parts[21]); // 进程启动时间（时钟滴答）
                 $clock_ticks = intval(shell_exec('getconf CLK_TCK 2>/dev/null') ?: 100);
-                $start_time = $start_time / $clock_ticks; // 转换为秒
+                $start_time = $start_ticks / $clock_ticks; // 转换为秒
             }
         }
     }
     
-    // 方法2: 从 /proc/uptime 获取系统运行时间（作为备用）
-    if (!$start_time && file_exists('/proc/uptime')) {
-        $uptime_data = file_get_contents('/proc/uptime');
-        if ($uptime_data) {
-            $parts = explode(' ', trim($uptime_data));
-            $start_time = time() - floatval($parts[0]); // 当前时间 - 系统运行时间
+    // 方法2: 从环境变量获取容器启动时间
+    if (!$start_time) {
+        $container_start = getenv('CONTAINER_START_TIME');
+        if ($container_start) {
+            $start_time = strtotime($container_start);
+        }
+    }
+    
+    // 方法3: 从Docker inspect获取容器启动时间
+    if (!$start_time) {
+        $container_id = getenv('HOSTNAME');
+        if ($container_id) {
+            $inspect_output = shell_exec("docker inspect {$container_id} 2>/dev/null | grep -o '\"StartedAt\":\"[^\"]*\"' | cut -d'\"' -f4");
+            if ($inspect_output) {
+                $start_time = strtotime(trim($inspect_output));
+            }
+        }
+    }
+    
+    // 方法4: 从容器内文件创建时间获取
+    if (!$start_time) {
+        $container_files = ['/etc/hostname', '/etc/hosts', '/.dockerenv'];
+        foreach ($container_files as $file) {
+            if (file_exists($file)) {
+                $start_time = filemtime($file);
+                break;
+            }
         }
     }
     
@@ -461,22 +481,18 @@ function getContainerInfo() {
 
 // 获取进程内存占用
 function getProcessMemory($process_name) {
-    // 使用更简单直接的方法获取进程信息
-    $memory_info = '';
-    
-    // 直接使用 ps aux 获取所有进程，然后过滤
-    $all_processes = shell_exec('ps aux 2>/dev/null');
-    if (!$all_processes) {
+    // 使用更简单的方法：直接使用 top 命令获取内存信息
+    $top_output = shell_exec('top -bn1 2>/dev/null');
+    if (!$top_output) {
         return '未运行';
     }
     
-    $lines = explode("\n", $all_processes);
+    $lines = explode("\n", $top_output);
     $total_memory = 0;
     $process_count = 0;
     
     foreach ($lines as $line) {
         if (trim($line)) {
-            // 根据进程名称匹配
             $matched = false;
             
             switch ($process_name) {
@@ -503,11 +519,11 @@ function getProcessMemory($process_name) {
             
             if ($matched) {
                 $parts = preg_split('/\s+/', trim($line));
-                if (count($parts) >= 6) {
-                    // ps aux 格式: USER PID %CPU %MEM VSZ RSS TTY STAT START TIME COMMAND
-                    $rss = intval($parts[5]); // RSS 在第6列
-                    if ($rss > 0) {
-                        $total_memory += $rss;
+                if (count($parts) >= 4) {
+                    // top 格式: PID USER %CPU %MEM VSZ RSS TTY STAT START TIME COMMAND
+                    $vsz = intval($parts[4]); // VSZ 在第5列
+                    if ($vsz > 0) {
+                        $total_memory += $vsz;
                         $process_count++;
                     }
                 }
