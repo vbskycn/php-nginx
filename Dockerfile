@@ -68,7 +68,7 @@ RUN chown -R nobody:nobody /var/www/html /run /var/lib/nginx /var/log/nginx && \
     chmod 755 /var/run
 
 # Switch to use a non-root user from here on
-#USER nobody
+USER nobody
 
 # Add application
 COPY --chown=nobody src/ /var/www/html/
