@@ -213,9 +213,8 @@ function diagnoseSystem() {
     // 检查 socket 文件
     $result .= "\n2. 检查 socket 文件:\n";
     $socket_files = [
-        '/run/supervisor.sock',
-        '/run/supervisord.sock',
-        '/tmp/supervisor.sock'
+        '/var/run/supervisor.sock',
+        '/run/supervisor.sock'
     ];
     
     foreach ($socket_files as $socket) {
@@ -404,16 +403,40 @@ function getContainerId() {
 
 // 获取进程内存占用
 function getProcessMemory($process_name) {
-    // 尝试多种方式查找进程
-    $commands = [
-        "ps -o pid,rss,comm -C {$process_name} --no-headers 2>/dev/null",
-        "ps aux | grep '{$process_name}' | grep -v grep 2>/dev/null",
-        "pgrep -f '{$process_name}' | xargs ps -o pid,rss,comm --no-headers 2>/dev/null",
-        "ps aux | grep -E '(php-fpm|nginx|redis)' | grep -v grep 2>/dev/null" // 更宽泛的搜索
-    ];
+    // 根据进程名称设置不同的搜索模式
+    $search_patterns = [];
+    
+    switch ($process_name) {
+        case 'php-fpm84':
+            $search_patterns = [
+                "ps aux | grep 'php-fpm' | grep -v grep 2>/dev/null",
+                "ps aux | grep '{php-fpm84}' | grep -v grep 2>/dev/null",
+                "pgrep -f 'php-fpm' | xargs ps -o pid,rss,comm --no-headers 2>/dev/null"
+            ];
+            break;
+        case 'nginx':
+            $search_patterns = [
+                "ps aux | grep 'nginx:' | grep -v grep 2>/dev/null",
+                "ps aux | grep 'nginx' | grep -v grep 2>/dev/null",
+                "pgrep -f 'nginx' | xargs ps -o pid,rss,comm --no-headers 2>/dev/null"
+            ];
+            break;
+        case 'redis':
+            $search_patterns = [
+                "ps aux | grep 'redis-server' | grep -v grep 2>/dev/null",
+                "ps aux | grep 'redis' | grep -v grep 2>/dev/null",
+                "pgrep -f 'redis' | xargs ps -o pid,rss,comm --no-headers 2>/dev/null"
+            ];
+            break;
+        default:
+            $search_patterns = [
+                "ps aux | grep '{$process_name}' | grep -v grep 2>/dev/null",
+                "pgrep -f '{$process_name}' | xargs ps -o pid,rss,comm --no-headers 2>/dev/null"
+            ];
+    }
     
     $memory_info = '';
-    foreach ($commands as $cmd) {
+    foreach ($search_patterns as $cmd) {
         $memory_info = shell_exec($cmd);
         if ($memory_info && trim($memory_info)) {
             break;
