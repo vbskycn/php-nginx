@@ -63,7 +63,8 @@ RUN ln -sf /etc/supervisor/conf.d/supervisord.conf /etc/supervisord.conf
 RUN chown -R nobody:nobody /var/www/html /run /var/lib/nginx /var/log/nginx && \
     mkdir -p /run/supervisor && \
     chown -R nobody:nobody /run/supervisor && \
-    chmod 755 /dev/shm
+    mkdir -p /var/run && \
+    chown -R nobody:nobody /var/run
 
 # Switch to use a non-root user from here on
 USER nobody
