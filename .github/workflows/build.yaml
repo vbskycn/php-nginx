@@ -159,7 +159,7 @@ jobs:
 
       - name: Create GitHub Release
         if: github.ref == 'refs/heads/main' && github.event_name == 'push' && steps.check_tag.outputs.TAG_EXISTS == 'false'
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.parse_version.outputs.TAG_NAME }}
           name: Release ${{ steps.parse_version.outputs.TAG_NAME }}
